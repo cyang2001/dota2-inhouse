@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Dota 2 内战战绩</title>
+  <style>
+    :root {
+      --background: #0d1118;
+      --panel: #161c26;
+      --panel-dark: #111720;
+      --line: #2a3342;
+      --text: #eef0f4;
+      --muted: #a4adbd;
+      --quiet: #8a97aa;
+      --gold: #ffcc80;
+      --radiant: #8ed9a6;
+      --dire: #f2a298;
+      --font: "Inter", "Microsoft YaHei UI", "PingFang SC", system-ui, sans-serif;
+      --numbers: "Barlow Condensed", "Arial Narrow", "Bahnschrift", var(--font);
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; background: var(--background); color: var(--text); font: 14px/1.55 var(--font); }
+    button, input, a { font: inherit; }
+    a { color: inherit; text-decoration: none; }
+    button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
+    [hidden] { display: none !important; }
+    .wrap { width: min(1168px, calc(100% - 64px)); margin-inline: auto; }
+    .top { border-bottom: 1px solid #242b37; background: #10151d; }
+    .top-inner { min-height: 65px; display: flex; gap: 36px; align-items: center; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 750; letter-spacing: .075em; white-space: nowrap; }
+    .brand-icon { width: 27px; height: 27px; display: grid; place-items: center; border: 1px solid #9d6940; background: #402a21; color: var(--gold); font: 750 13px/1 var(--numbers); letter-spacing: -.03em; border-radius: 5px; }
+    .top nav { display: flex; gap: 24px; align-self: stretch; }
+    .top nav a { position: relative; display: flex; align-items: center; color: var(--muted); white-space: nowrap; }
+    .top nav a[aria-current="page"] { color: var(--gold); }
+    .top nav a[aria-current="page"]::after { content: ""; position: absolute; inset: auto 0 0; height: 2px; background: var(--gold); }
+    .preview { margin-left: auto; color: var(--quiet); display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+    .preview::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--gold); }
+    main { padding-block: 36px 46px; }
+    h1, h2, p { margin: 0; }
+    h1 { font-size: clamp(28px, 4vw, 42px); line-height: 1.2; letter-spacing: -.045em; font-weight: 800; }
+    .page-head { display: flex; justify-content: space-between; align-items: end; gap: 12px; margin-bottom: 22px; }
+    .subtitle { color: var(--muted); margin-top: 8px; }
+    .match-code { color: var(--quiet); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .scoreboard { position: relative; isolation: isolate; display: grid; grid-template-columns: 1fr minmax(208px, .85fr) 1fr; align-items: center; gap: 10px; padding: 26px 28px 28px; min-height: 206px; border: 1px solid #414140; border-radius: 12px; overflow: hidden; background: linear-gradient(108deg, #162e29 1%, #141b24 39%, #181b24 57%, #362126 100%); }
+    .scoreboard::before, .scoreboard::after { content: ""; z-index: -1; position: absolute; inset-block: -85%; width: 36%; border-inline: 1px solid #ffffff13; background: repeating-linear-gradient(90deg, #ffffff00 0 32px, #ffffff08 33px 34px); transform: skew(-25deg); }
+    .scoreboard::before { left: -10%; }
+    .scoreboard::after { right: -10%; }
+    .score-team { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+    .radiant { --side: var(--radiant); --side-bg: #1b312b; }
+    .dire { --side: var(--dire); --side-bg: #362529; }
+    .team-name { color: var(--side); font-weight: 800; font-size: clamp(18px, 2.1vw, 25px); letter-spacing: .07em; }
+    .team-label { color: var(--side); text-transform: uppercase; letter-spacing: .13em; font-size: 10px; font-weight: 730; margin-bottom: 2px; }
+    .portrait-strip { display: flex; justify-content: center; gap: 4px; width: 100%; margin-top: 12px; }
+    .portrait-strip .portrait { width: min(52px, 18%); height: auto; aspect-ratio: 1.45; border: 1px solid #ffffff28; }
+    .portrait { display: block; object-fit: cover; background: #283140; border-radius: 4px; min-width: 0; }
+    .portrait-fallback { display: inline-grid; place-items: center; color: #d9dfea; font-size: 11px; background: linear-gradient(150deg, #364256, #222b39); }
+    .score-center { display: flex; align-items: center; flex-direction: column; gap: 5px; text-align: center; }
+    .result-label { display: inline-flex; align-items: center; gap: 7px; color: var(--gold); background: #433422; border: 1px solid #715533; border-radius: 4px; padding: 3px 10px; font-size: 11px; letter-spacing: .12em; font-weight: 800; }
+    .result-label::before { content: ""; width: 6px; height: 6px; transform: rotate(45deg); background: var(--gold); }
+    .score { display: flex; gap: 14px; align-items: center; font: 790 clamp(43px, 6vw, 74px)/.98 var(--numbers); font-variant-numeric: tabular-nums; color: #f5f1e7; letter-spacing: -.04em; }
+    .score span:nth-child(2) { color: #8c8e92; font-size: .57em; font-weight: 400; }
+    .score-meta { color: #adb5c1; font-size: 12px; font-variant-numeric: tabular-nums; margin-top: 2px; }
+    .panels { display: grid; grid-template-columns: 1.12fr 1fr; gap: 19px; margin-top: 22px; align-items: start; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-width: 0; overflow: hidden; }
+    .panel-head { min-height: 64px; padding: 13px 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border-bottom: 1px solid var(--line); }
+    h2 { font-size: 17px; font-weight: 750; letter-spacing: -.015em; }
+    .panel-meta { color: var(--quiet); font-size: 12px; }
+    .table-scroll { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; table-layout: fixed; color: var(--text); font-variant-numeric: tabular-nums; }
+    th, td { text-align: left; height: 40px; padding: 5px 10px; }
+    th:first-child, td:first-child { padding-left: 18px; }
+    th:last-child, td:last-child { padding-right: 18px; }
+    th { background: #1a222e; color: #aeb9c9; font-size: 11px; font-weight: 700; }
+    td { border-top: 1px solid #272f3c; }
+    tbody tr:hover { background: #1c2430; }
+    .rank { color: var(--quiet); width: 64px; }
+    .rank[data-first="true"] { color: var(--gold); }
+    .stat { text-align: center; width: 56px; }
+    .wins { color: var(--radiant); }
+    .losses { color: var(--dire); }
+    .rate { width: 120px; }
+    .rate-value { display: flex; align-items: center; gap: 8px; }
+    .rate-value strong { min-width: 39px; font-size: 13px; }
+    .meter { height: 3px; width: 42px; border-radius: 999px; background: #404858; overflow: hidden; }
+    .meter span { display: block; height: 100%; background: var(--radiant); border-radius: inherit; }
+    .detail .portrait { width: 38px; height: 26px; flex: 0 0 38px; }
+    .detail .hero { color: var(--muted); font-size: 11px; }
+    .player-name { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .replay-list { list-style: none; margin: 0; padding: 0; }
+    .replay-list li + li { border-top: 1px solid var(--line); }
+    .replay-link { display: grid; grid-template-columns: auto 1fr auto 13px; align-items: center; gap: 12px; min-height: 67px; padding: 10px 16px; }
+    .replay-link:hover { background: #202938; }
+    .replay-link:focus-visible { outline-offset: -4px; }
+    .category { justify-self: start; font-size: 11px; border: 1px solid #485166; color: #c3ccdc; background: #273142; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+    .category.inhouse { border-color: #487858; color: var(--radiant); background: #20382d; }
+    .category.ranked { border-color: #72573c; color: var(--gold); background: #382b20; }
+    .date { display: block; color: var(--text); font-size: 13px; }
+    .replay-id { display: block; color: var(--quiet); font-size: 11px; }
+    .row-score { white-space: nowrap; font-weight: 750; font-variant-numeric: tabular-nums; }
+    .row-arrow { color: var(--quiet); }
+    .empty { color: var(--muted); padding: 22px 18px; }
+    .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 19px; margin-top: 22px; }
+    .team-detail-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 62px; padding: 12px 18px; color: var(--side); background: var(--side-bg); border-bottom: 1px solid var(--line); }
+    .team-detail-head .team-label { margin: 2px 0 0; }
+    .team-detail-head span { font-size: 12px; }
+    .detail .player-cell { display: flex; align-items: center; gap: 9px; }
+    .detail .player-cell > div { min-width: 0; }
+    .detail .player-name { white-space: normal; overflow-wrap: anywhere; }
+    .detail td { height: 56px; }
+    .detail .hero { margin: 0; text-align: left; }
+    .detail .stat { width: 47px; }
+    .notes { color: var(--quiet); font-size: 12px; margin-top: 19px; }
+    @media (max-width: 920px) {
+      .wrap { width: calc(100% - 48px); }
+      .panels { grid-template-columns: 1fr; }
+      .details-grid { gap: 12px; }
+    }
+    @media (max-width: 700px) {
+      .wrap { width: calc(100% - 28px); }
+      .top-inner { min-height: 56px; gap: 18px; }
+      .top nav { gap: 13px; font-size: 13px; }
+      .brand { gap: 6px; font-size: 12px; }
+      .brand-icon { width: 24px; height: 24px; }
+      .preview { font-size: 10px; gap: 5px; }
+      main { padding-top: 25px; }
+      .page-head { align-items: start; flex-direction: column; gap: 5px; }
+      .scoreboard { padding: 19px 10px; grid-template-columns: 1fr minmax(110px, .8fr) 1fr; gap: 4px; min-height: 151px; }
+      .score { gap: 7px; }
+      .score-meta { font-size: 10px; }
+      .portrait-strip { gap: 2px; }
+      .portrait-strip .portrait { border: 0; border-radius: 2px; }
+      .panels, .details-grid { gap: 13px; margin-top: 14px; }
+      .details-grid { grid-template-columns: 1fr; }
+      .detail .stat { width: 46px; }
+      .rank { width: 53px; }
+      .rate { width: 92px; }
+      .meter { width: 18px; }
+      .stat { width: 43px; }
+      .replay-link { gap: 9px; padding-inline: 12px; }
+    }
+    @media (max-width: 350px) {
+      .meter { display: none; }
+      .rate { width: 65px; }
+      .preview::before { display: none; }
+      .date { font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap top-inner">
+      <a class="brand" href="#overview"><span class="brand-icon" aria-hidden="true">D2</span><span>DOTA 2</span></a>
+      <nav aria-label="战绩导航">
+        <a href="#overview" id="nav-overview" aria-current="page">总览</a>
+        <a href="#match" id="nav-match">比赛详情</a>
+      </nav>
+      <span class="preview">本机预览</span>
+    </div>
+  </header>
+  <main class="wrap" id="main">
+    <div class="page-head">
+      <div><h1 id="heading">内战战绩</h1><p class="subtitle" id="subtitle"></p></div>
+      <p class="match-code" id="match-code"></p>
+    </div>
+    <section class="scoreboard" id="scoreboard" aria-label="比赛比分"></section>
+    <div class="panels" id="overview">
+      <section class="panel" aria-labelledby="rank-title">
+        <div class="panel-head"><h2 id="rank-title">内战胜率榜</h2><span class="panel-meta" id="rank-count"></span></div>
+        <div class="table-scroll" id="rank-table">
+          <table aria-labelledby="rank-title">
+            <thead><tr><th class="rank" scope="col">排名</th><th scope="col">玩家</th><th class="stat" scope="col">场次</th><th class="stat" scope="col">胜</th><th class="stat" scope="col">负</th><th class="rate" scope="col">胜率</th></tr></thead>
+            <tbody id="ranking"></tbody>
+          </table>
+        </div>
+        <p class="empty" id="rank-empty" hidden>暂无已确认的私人房间战绩。</p>
+      </section>
+      <section class="panel" aria-labelledby="replay-title">
+        <div class="panel-head"><h2 id="replay-title">本机录像</h2><span class="panel-meta" id="replay-count"></span></div>
+        <ul class="replay-list" id="replay-list"></ul>
+      </section>
+    </div>
+    <section class="details-grid" id="match" aria-label="两队赛后战绩" hidden></section>
+    <p class="notes">房间类型、比赛战绩和玩家昵称均来自本机赛后录像。</p>
+  </main>
+  <script id="preview-data" type="application/json">__PREVIEW_DATA__</script>
+  <script>
+    'use strict';
+    const records = JSON.parse(document.getElementById('preview-data').textContent);
+    const { matches, heroes } = records;
+    const categories = { inhouse: '私人房间', ranked: '天梯', weekend: '周末联赛', casual: '普通匹配', unknown: '类型待确认' };
+    const inhouseMatches = matches.filter((match) => match.category === 'inhouse' && match.winner);
+    const featured = inhouseMatches[0] ?? matches[0];
+    let current = featured;
+    const sides = { radiant: ['天辉', 'Radiant'], dire: ['夜魇', 'Dire'] };
+    const element = (id) => document.getElementById(id);
+    const formatDate = (value) => new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`));
+    const matchDate = (match) => match.playedDate ? formatDate(match.playedDate) : `${formatDate(match.savedDate)}存档`;
+    const categoryLabel = (match) => categories[match.category] ?? categories.unknown;
+
+    function node(tag, classes, text) {
+      const item = document.createElement(tag);
+      if (classes) item.className = classes;
+      if (text != null) item.textContent = text;
+      return item;
+    }
+
+    function heroLabel(player) {
+      return heroes[player.hero]?.name || player.hero;
+    }
+
+    function playerName(name) {
+      const label = node('bdi', 'player-name', name);
+      label.title = name;
+      return label;
+    }
+
+    function portrait(player) {
+      const hero = heroes[player.hero];
+      if (!hero?.image) return node('span', 'portrait portrait-fallback', heroLabel(player).slice(0, 1));
+      const image = node('img', 'portrait');
+      image.src = hero.image;
+      image.alt = '';
+      image.title = hero.name;
+      image.width = 52;
+      image.height = 36;
+      return image;
+    }
+
+    function teamPlayers(side) {
+      return current.players.filter((player) => player.team === side);
+    }
+
+    function scoreSide(side) {
+      const panel = node('div', `score-team ${side}`);
+      const strip = node('div', 'portrait-strip');
+      strip.append(...teamPlayers(side).map(portrait));
+      panel.append(node('div', 'team-label', sides[side][1]), node('div', 'team-name', sides[side][0]), strip);
+      return panel;
+    }
+
+    function renderScore() {
+      const center = node('div', 'score-center');
+      const score = node('div', 'score');
+      score.append(node('span', '', current.radiantScore), node('span', '', '–'), node('span', '', current.direScore));
+      score.setAttribute('aria-label', `天辉 ${current.radiantScore} 比 ${current.direScore} 夜魇`);
+      const minutes = Math.floor(current.duration / 60);
+      const seconds = String(current.duration % 60).padStart(2, '0');
+      const result = current.winner ? `${sides[current.winner][0]}获胜` : '胜方待确认';
+      center.append(node('span', 'result-label', result), score, node('span', 'score-meta', `${categoryLabel(current)} · ${minutes}:${seconds}`));
+      element('scoreboard').replaceChildren(scoreSide('radiant'), center, scoreSide('dire'));
+    }
+
+    function getRanking() {
+      const standings = new Map();
+      for (const match of inhouseMatches) {
+        for (const player of match.players) {
+          const total = standings.get(player.id) ?? { name: player.name, wins: 0, losses: 0 };
+          if (player.team === match.winner) total.wins++;
+          else total.losses++;
+          standings.set(player.id, total);
+        }
+      }
+      return Array.from(standings.values(), (total) => {
+        const games = total.wins + total.losses;
+        return { ...total, games, rate: total.wins / games };
+      }).sort((a, b) => b.rate - a.rate || b.wins - a.wins || a.name.localeCompare(b.name, 'zh-CN'));
+    }
+
+    function renderRanking() {
+      const standings = getRanking();
+      element('rank-count').textContent = `${standings.length} 位玩家`;
+      element('rank-table').hidden = !standings.length;
+      element('rank-empty').hidden = Boolean(standings.length);
+      let previous;
+      let rank = 0;
+      const rows = standings.map((row, index) => {
+        if (!previous || row.rate !== previous.rate || row.wins !== previous.wins) rank = index + 1;
+        previous = row;
+        const tr = node('tr');
+        const rankCell = node('td', 'rank', rank);
+        rankCell.dataset.first = String(rank === 1);
+        const percent = new Intl.NumberFormat('zh-CN', { style: 'percent', maximumFractionDigits: 1 }).format(row.rate);
+        const rateCell = node('td', 'rate');
+        const rate = node('div', 'rate-value');
+        const meter = node('span', 'meter');
+        meter.setAttribute('aria-hidden', 'true');
+        const fill = node('span');
+        fill.style.width = percent;
+        meter.append(fill);
+        rate.append(node('strong', '', percent), meter);
+        rateCell.append(rate);
+        const nameCell = node('td');
+        nameCell.append(playerName(row.name));
+        tr.append(rankCell, nameCell, node('td', 'stat', row.games), node('td', 'stat wins', row.wins), node('td', 'stat losses', row.losses), rateCell);
+        return tr;
+      });
+      element('ranking').replaceChildren(...rows);
+    }
+
+    function renderReplayList() {
+      const rows = matches.map((match) => {
+        const row = node('li');
+        const link = node('a', 'replay-link');
+        link.href = `#match/${match.matchId}`;
+        const identity = node('span');
+        identity.append(node('span', 'date', matchDate(match)), node('span', 'replay-id', match.matchId));
+        const arrow = node('span', 'row-arrow', '→');
+        arrow.setAttribute('aria-hidden', 'true');
+        link.append(node('span', `category ${match.category}`, categoryLabel(match)), identity, node('span', 'row-score', `${match.radiantScore}–${match.direScore}`), arrow);
+        row.append(link);
+        return row;
+      });
+      element('replay-list').replaceChildren(...rows);
+      element('replay-count').textContent = `${matches.length} 局`;
+    }
+
+    function renderDetails() {
+      const cards = Object.keys(sides).map((side) => {
+        const card = node('article', `panel detail ${side}`);
+        const heading = node('div', 'team-detail-head');
+        const title = node('h2', '', sides[side][0]);
+        title.id = `detail-${side}`;
+        heading.append(title, node('span', 'team-label', sides[side][1]));
+        const table = node('table');
+        table.setAttribute('aria-labelledby', title.id);
+        const headRow = table.createTHead().insertRow();
+        for (const [label, description] of [['玩家 / 英雄', ''], ['K', '击杀'], ['D', '死亡'], ['A', '助攻']]) {
+          const th = node('th', description ? 'stat' : '', label);
+          th.scope = 'col';
+          if (description) th.setAttribute('aria-label', description);
+          headRow.append(th);
+        }
+        const body = table.createTBody();
+        for (const player of teamPlayers(side)) {
+          const tr = body.insertRow();
+          const playerCell = tr.insertCell();
+          const identity = node('div');
+          identity.append(playerName(player.name), node('div', 'hero', heroLabel(player)));
+          const inside = node('div', 'player-cell');
+          inside.append(portrait(player), identity);
+          playerCell.append(inside);
+          for (const stat of [player.kills, player.deaths, player.assists]) tr.append(node('td', 'stat', stat ?? '—'));
+        }
+        card.append(heading, table);
+        return card;
+      });
+      element('match').replaceChildren(...cards);
+    }
+
+    function route() {
+      const selection = location.hash.match(/^#match(?:\/(\d+))?$/);
+      current = matches.find((match) => match.matchId === selection?.[1]) ?? featured;
+      const details = Boolean(selection && current);
+      element('overview').hidden = details;
+      element('match').hidden = !details;
+      element('heading').textContent = details ? '比赛详情' : '内战战绩';
+      element('subtitle').textContent = details ? `${matchDate(current)} · 5 对 5` : `已导入 ${matches.length} 局录像 · ${inhouseMatches.length} 局计入内战胜率榜`;
+      element('match-code').textContent = current ? `比赛 ID  ${current.matchId}` : '';
+      element('nav-match').hidden = !current;
+      if (current) element('nav-match').href = `#match/${current.matchId}`;
+      element('nav-overview').removeAttribute('aria-current');
+      element('nav-match').removeAttribute('aria-current');
+      element(details ? 'nav-match' : 'nav-overview').setAttribute('aria-current', 'page');
+      element('scoreboard').hidden = !current;
+      if (current) renderScore();
+      if (details) renderDetails();
+    }
+
+    renderRanking();
+    renderReplayList();
+    route();
+    addEventListener('hashchange', () => { route(); window.scrollTo(0, 0); });
+  </script>
+</body>
+</html>

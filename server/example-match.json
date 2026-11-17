@@ -1,0 +1,107 @@
+{
+  "matchId": "1000000001",
+  "winner": "radiant",
+  "duration": 1800,
+  "radiantScore": 15,
+  "direScore": 10,
+  "playedDate": "2026-11-16",
+  "savedDate": "2026-11-16",
+  "players": [
+    {
+      "id": "00000000000000000000000000000001",
+      "name": "示例玩家 01",
+      "team": "radiant",
+      "hero": "axe",
+      "kills": 3,
+      "deaths": 2,
+      "assists": 4
+    },
+    {
+      "id": "00000000000000000000000000000002",
+      "name": "示例玩家 02",
+      "team": "radiant",
+      "hero": "lina",
+      "kills": 3,
+      "deaths": 2,
+      "assists": 4
+    },
+    {
+      "id": "00000000000000000000000000000003",
+      "name": "示例玩家 03",
+      "team": "radiant",
+      "hero": "lion",
+      "kills": 3,
+      "deaths": 2,
+      "assists": 4
+    },
+    {
+      "id": "00000000000000000000000000000004",
+      "name": "示例玩家 04",
+      "team": "radiant",
+      "hero": "sniper",
+      "kills": 3,
+      "deaths": 2,
+      "assists": 4
+    },
+    {
+      "id": "00000000000000000000000000000005",
+      "name": "示例玩家 05",
+      "team": "radiant",
+      "hero": "mirana",
+      "kills": 3,
+      "deaths": 2,
+      "assists": 4
+    },
+    {
+      "id": "00000000000000000000000000000006",
+      "name": "示例玩家 06",
+      "team": "dire",
+      "hero": "pudge",
+      "kills": 2,
+      "deaths": 3,
+      "assists": 4
+    },
+    {
+      "id": "00000000000000000000000000000007",
+      "name": "示例玩家 07",
+      "team": "dire",
+      "hero": "juggernaut",
+      "kills": 2,
+      "deaths": 3,
+      "assists": 4
+    },
+    {
+      "id": "00000000000000000000000000000008",
+      "name": "示例玩家 08",
+      "team": "dire",
+      "hero": "dazzle",
+      "kills": 2,
+      "deaths": 3,
+      "assists": 4
+    },
+    {
+      "id": "00000000000000000000000000000009",
+      "name": "示例玩家 09",
+      "team": "dire",
+      "hero": "bane",
+      "kills": 2,
+      "deaths": 3,
+      "assists": 4
+    },
+    {
+      "id": "0000000000000000000000000000000a",
+      "name": "示例玩家 10",
+      "team": "dire",
+      "hero": "tiny",
+      "kills": 2,
+      "deaths": 3,
+      "assists": 4
+    }
+  ],
+  "replay": {
+    "matchId": "1000000001",
+    "lobbyType": 1,
+    "radiantPlayers": 5,
+    "direPlayers": 5
+  }
+}

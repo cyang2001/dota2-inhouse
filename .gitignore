@@ -1,0 +1,14 @@
+.data/
+.dev.vars*
+.env*
+.wrangler/
+node_modules/
+.venv/
+__pycache__/
+*.sqlite3*
+*.dem
+*.dem.bz2
+*.log
+*.key
+wrangler.live.json
+secrets.json
