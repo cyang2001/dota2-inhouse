@@ -18,6 +18,8 @@ Windows 从录像读取 `lobbyType`、比赛 ID 和真人阵容，用本机密�
 
 后端 `POST /api/matches` 用 Bearer 密钥鉴权。比赛必须是 `PRACTICE` 私人房间（`lobbyType=1`），两队各五名真人。上传的录像字段和战绩摘要必须使用相同比赛 ID。接口还检查胜方、十个唯一玩家 ID 和完整 K/D/A。D1 以比赛 ID 去重。原始 `.dem`、Steam ID 和玩家身份密钥都保存在 Windows 本机。朋友通过 HTTPS 和共享查看密码读取网页。
 
+点击胜率榜中的玩家名，可查看每个英雄的场次、胜、负和胜率。读取接口 `GET /api/players/{playerId}/heroes` 使用同一查看密码，依据玩家的稳定 ID 汇总已校验的私房记录。`winRate` 是 `0` 到 `1` 的比例。
+
 ## 本机试跑
 
 后端需要 Node.js 和 npm。在 `server/` 中创建 `.dev.vars`，填入本机测试值。

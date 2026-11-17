@@ -13,7 +13,7 @@
 
 ## 公开 API 的用途
 
-OpenDota 的 `/players/{account_id}/heroes` 可按公开账号取英雄使用和胜场统计。私房英雄胜率可以直接从本项目已入库的英雄和胜方计算。若后续接 OpenDota，适合在同一个玩家页增加「公开比赛」数据，并独立标出来源和统计范围。当前内战玩家 ID 无法直接作为 OpenDota 的 `account_id` 使用。 [OpenDota API 源码](https://github.com/odota/core/blob/master/svc/api/spec.ts)
+用一个公开职业账号实测了 OpenDota 的 `/players/{account_id}/heroes`，接口返回 `hero_id`、`games` 和 `win`。STRATZ 提供 GraphQL，可作为公开比赛数据的候选来源，当前未用 STRATZ 凭据发请求。私房英雄胜率直接从本项目已入库的英雄和胜方计算。若后续接入外部数据，可以在同一个玩家页显示公开比赛的统计范围和来源。玩家先自愿提供公开 `account_id`，再进行查询。 [OpenDota API 源码](https://github.com/odota/core/blob/master/svc/api/spec.ts) · [STRATZ](https://stratz.com/api)
 
 ## Discord 和 Docker
 
