@@ -31,6 +31,8 @@ Windows 从录像读取 `lobbyType`、比赛 ID 和真人阵容，用本机密�
 
 `GET /api/analytics/wards` 汇总所有已解析的内战眼位。每张热图显示样本覆盖；旧战绩可单独补传空间数据。活动图按游戏时钟每 5 秒最多取一个英雄位置。假眼和真眼按放置次数统计，汇总到北向上的 36 × 36 坐标网格。
 
+眼位地图从 `GET /api/analytics/ward-events` 读取每次放置的坐标、游戏时间、阵营和玩家 ID。全局与个人地图支持散点、热力和眼位、时段、阵营筛选，历史录像统一使用 gem 校准的 7.41 底图。游戏地形随版本变化，历史场地细节以录像为准。底图从 gem 文档的现成 WebP 加载。 [底图版权与来源](https://github.com/whanyu1212/gem-dota/blob/main/assets/maps/README.md) · [坐标校准](https://whanyu1212.github.io/gem-dota/experimental/map-annotations)
+
 ## 本机试跑
 
 后端需要 Node.js 和 npm。在 `server/` 中创建 `.dev.vars`，填入本机测试值。

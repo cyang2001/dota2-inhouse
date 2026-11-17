@@ -14,6 +14,16 @@ test('rejects duplicated or out-of-grid cells and foreign player IDs', () => {
   assert.throws(() => validateSpatial(spatial(initial), [{ id: '8'.repeat(32) }]));
 });
 
+test('ward events validate map bounds and the placer’s side, while legacy grids still work', () => {
+  const players = [{ id: playerId, team: 'radiant' }];
+  const legacy = spatial({ activity: null, observer: [[0, 1]], sentry: [] });
+  assert.equal(validateSpatial(legacy, players).wardEvents, undefined);
+  const events = [['observer', 2, playerId, 600, 0, 16383], ['sentry', 3, null, null, 400, 500]];
+  assert.deepEqual(validateSpatial({ ...legacy, version: 2, wardEvents: events }, players).wardEvents, events);
+  assert.throws(() => validateSpatial({ ...legacy, version: 2, wardEvents: [['observer', 3, playerId, 600, 0, 0]] }, players));
+  assert.throws(() => validateSpatial({ ...legacy, version: 2, wardEvents: [['observer', 2, playerId, 600, 16384, 0]] }, players));
+});
+
 test('counts known zero ward placements and missing movement samples as distinct coverage', () => {
   const rows = [
     { activity: [[1, 2]], observer: [[0, 3]], sentry: [] },

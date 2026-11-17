@@ -1,4 +1,5 @@
-export const spatialVersion = 1;
+export const wardEventVersion = 2;
+export const wardMapScale = 16383;
 export const gridSize = 36;
 export const activityInterval = 5;
 export const wardLayers = ['observer', 'sentry'];
@@ -22,7 +23,7 @@ function grid(entries) {
 }
 
 export function validateSpatial(data, players) {
-  if (data?.version !== spatialVersion || !data.players || !data.unattributedWards ||
+  if (![1, wardEventVersion].includes(data?.version) || !data.players || !data.unattributedWards ||
       Object.keys(data.players).length !== players.length ||
       !wardLayers.every((kind) => count(data.unattributedWards[kind]))) {
     throw new Error('Invalid spatial data version, roster, or ward counts');
@@ -35,5 +36,22 @@ export function validateSpatial(data, players) {
       observer: grid(row.observer), sentry: grid(row.sentry) }];
   });
   const { observer, sentry } = data.unattributedWards;
-  return { version: spatialVersion, unattributedWards: { observer, sentry }, players: Object.fromEntries(rows) };
+  const wardEvents = data.version === wardEventVersion ? validateWardEvents(data.wardEvents, players) : undefined;
+  return { version: data.version, unattributedWards: { observer, sentry }, players: Object.fromEntries(rows), wardEvents };
+}
+
+function validateWardEvents(events, players) {
+  if (!Array.isArray(events) || events.length > 2048) throw new Error('Invalid ward events');
+  const teams = new Map(players.map(({ id, team }) => [id, team === 'radiant' ? 2 : 3]));
+  return events.map((event) => {
+    if (!Array.isArray(event) || event.length !== 6) throw new Error('Invalid ward event');
+    const [kind, team, playerId, seconds, x, y] = event;
+    if (!wardLayers.includes(kind) || ![null, 2, 3].includes(team) ||
+        (playerId !== null && teams.get(playerId) !== team) ||
+        (seconds !== null && (!Number.isInteger(seconds) || seconds < -3600 || seconds > 86400)) ||
+        ![x, y].every((c) => Number.isInteger(c) && c >= 0 && c <= wardMapScale)) {
+      throw new Error('Invalid ward event');
+    }
+    return [kind, team, playerId, seconds, x, y];
+  });
 }

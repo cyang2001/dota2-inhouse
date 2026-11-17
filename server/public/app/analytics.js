@@ -1,5 +1,5 @@
 import { element, formatRate, heroes, node, playerName, portrait } from './dom.js';
-import { loadLeagueWards } from './heatmaps.js';
+import { mountWardMap } from './ward-map.js';
 
 let analyticsData;
 let analyticsLoading = false;
@@ -8,7 +8,7 @@ let direction = 'descending';
 
 
 export async function loadAnalytics() {
-  loadLeagueWards();
+  mountWardMap(element('league-wards'));
   if (analyticsData || analyticsLoading) return;
   analyticsLoading = true;
   const status = element('analytics-status');
