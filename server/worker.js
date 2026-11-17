@@ -85,9 +85,32 @@ function validateMatch(data) {
     return { id, name, team, hero, kills, deaths, assists };
   });
   if (radiant !== 5) throw new Error('Expected five players on each team');
+  const draft = data.draft == null ? undefined : validateDraft(data.draft, players);
   const { matchId, winner, duration, radiantScore, direScore, playedDate, savedDate } = data;
-  return { matchId, category: 'inhouse', winner, duration, radiantScore, direScore, playedDate, savedDate, players,
+  return { matchId, category: 'inhouse', winner, duration, radiantScore, direScore, playedDate, savedDate, players, draft,
     replay: { matchId, lobbyType: replay.lobbyType, radiantPlayers: replay.radiantPlayers, direPlayers: replay.direPlayers } };
+}
+
+function validateDraft(events, players) {
+  if (!Array.isArray(events) || events.length < 10 || events.length > 40) throw new Error('Invalid draft length');
+  const lineups = new Set(players.map((p) => `${p.team}/${p.hero}`));
+  const picks = new Set();
+  const draft = events.map((event) => {
+    if (!event || !['pick', 'ban'].includes(event.action) || !sides.has(event.team) ||
+        !Number.isSafeInteger(event.heroId) || event.heroId <= 0 ||
+        (event.hero != null && (typeof event.hero !== 'string' || !/^[a-z0-9_]{1,48}$/.test(event.hero)))) {
+      throw new Error('Invalid draft event');
+    }
+    if (event.action === 'pick') {
+      const pick = `${event.team}/${event.hero}`;
+      if (!lineups.has(pick) || picks.has(pick)) throw new Error('Draft pick does not match the final lineup');
+      picks.add(pick);
+    }
+    const { action, team, heroId, hero } = event;
+    return { action, team, heroId, hero: hero ?? null };
+  });
+  if (picks.size !== 10) throw new Error('Expected ten draft picks');
+  return draft;
 }
 
 async function upload(request, env) {
