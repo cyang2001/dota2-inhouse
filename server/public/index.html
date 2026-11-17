@@ -113,7 +113,18 @@
     .detail .stat { width: 47px; }
     .notes { color: var(--quiet); font-size: 12px; margin-top: 19px; }
     .draft-panel { margin-top: 19px; padding: 16px 18px; }
-    .draft-panel ol { columns: 2 190px; margin-bottom: 0; padding-left: 24px; }
+    .draft-teams { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 13px; }
+    .draft-team { min-width: 0; padding: 10px; background: var(--panel-dark); border: 1px solid var(--line); border-radius: 6px; }
+    .draft-team h3 { margin: 0 0 9px; color: var(--side); font-size: 13px; }
+    .draft-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; list-style: none; margin: 0; padding: 0; }
+    .draft-row + .draft-row { margin-top: 10px; }
+    .draft-card { min-width: 0; text-align: center; }
+    .draft-face { position: relative; display: block; height: auto; aspect-ratio: 16 / 9; }
+    .draft-face .portrait { width: 100%; height: 100%; border: 1px solid var(--side); }
+    .draft-ban .portrait { filter: grayscale(1) brightness(.68); border-color: #6b7180; }
+    .draft-ban .draft-face::after { content: '×'; position: absolute; top: 2px; right: 3px; display: grid; place-items: center; width: 1em; height: 1em; color: #e5e7eb; background: #141922; border-radius: 2px; font-size: 11px; line-height: 1; }
+    .draft-order { display: block; margin-top: 2px; color: var(--text); font: 700 13px/1.3 var(--numbers); font-variant-numeric: tabular-nums; }
+    @media (max-width: 700px) { .draft-teams { grid-template-columns: minmax(0, 1fr); } }
     .hero-stats-button { color: var(--gold); border: 0; background: transparent; padding: 0; max-width: 100%; cursor: pointer; text-align: start; }
     #hero-stats { width: min(560px, calc(100% - 28px)); color: var(--text); background: var(--panel); padding: 0; }
     #hero-stats::backdrop { background: #000a; }
@@ -412,14 +423,36 @@
       if (details) renderDetails();
       const draft = element('draft');
       draft.hidden = !details || !current?.draft?.length;
-      if (!draft.hidden) {
-        const events = node('ol');
-        for (const event of current.draft) {
-          const hero = heroes[event.hero]?.name || event.hero || `英雄 ${event.heroId}`;
-          events.append(node('li', '', `${sides[event.team][0]} ${event.action === 'pick' ? '选用' : '禁用'} ${hero}`));
+      if (!draft.hidden) renderDraft(draft, current.draft);
+    }
+
+    function renderDraft(container, events) {
+      const teams = node('div', 'draft-teams');
+      for (const side of ['radiant', 'dire']) {
+        const team = node('section', `draft-team ${side}`);
+        team.append(node('h3', '', sides[side][0]));
+        for (const [action, label] of [['pick', '选用'], ['ban', '禁用']]) {
+          const row = node('ul', 'draft-row');
+          row.setAttribute('aria-label', label);
+          events.forEach((event, index) => {
+            if (event.team !== side || event.action !== action) return;
+            const name = heroes[event.hero]?.name || event.hero || `英雄 ${event.heroId}`;
+            const order = index + 1;
+            const card = node('li', `draft-card draft-${action}`);
+            const face = node('span', 'draft-face');
+            const image = event.hero ? portrait(event) : node('span', 'portrait portrait-fallback', '?');
+            image.title = '';
+            face.append(image);
+            card.title = `${order}. ${label} ${name}`;
+            card.setAttribute('aria-label', card.title);
+            card.append(face, node('span', 'draft-order', order));
+            row.append(card);
+          });
+          if (row.children.length) team.append(row);
         }
-        draft.replaceChildren(node('h2', '', '英雄禁选'), events);
+        teams.append(team);
       }
+      container.replaceChildren(node('h2', '', '英雄禁选'), teams);
     }
 
     renderRanking();
