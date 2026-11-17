@@ -1,4 +1,4 @@
-export const practiceLobby = 1;
+import { practiceLobby } from '../domain/match.js';
 
 const verifiedMatches = `SELECT match_id, played_date, summary FROM matches
   WHERE json_extract(summary, '$.replay.matchId') = match_id

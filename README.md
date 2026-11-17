@@ -7,7 +7,9 @@
 | 文件 | 作用 |
 | --- | --- |
 | [`server/worker.js`](server/worker.js) | 上传鉴权、私人房间校验、去重和网页读取。 |
-| [`server/matches.js`](server/matches.js) | D1 写入、已验证比赛查询和玩家英雄统计。网页与后续 Discord 功能可以共用。 |
+| [`server/src/domain/match.js`](server/src/domain/match.js) | 比赛、阵容和 BP 的校验规则。 |
+| [`server/src/repositories/matches.js`](server/src/repositories/matches.js) | D1 写入、已验证比赛查询和玩家英雄统计。 |
+| [`server/src/services/analytics.js`](server/src/services/analytics.js) | 网页和 Discord 使用的胜率统计，以及全局英雄选禁总览。 |
 | [`server/schema.sql`](server/schema.sql) | D1 的 `matches` 表。比赛 ID 是主键。 |
 | [`server/public/index.html`](server/public/index.html) | 托管页面模板。Worker 从 D1 加载数据，页面计算胜率榜。 |
 | [`windows/watch_replays.py`](windows/watch_replays.py) | 监听文件、校验来源、保存本地队列、重试上传。 |
@@ -20,6 +22,8 @@ Windows 从录像读取 `lobbyType`、比赛 ID 和真人阵容，用本机密�
 后端 `POST /api/matches` 用 Bearer 密钥鉴权。比赛必须是 `PRACTICE` 私人房间（`lobbyType=1`），两队各五名真人。上传的录像字段和战绩摘要必须使用相同比赛 ID。接口还检查胜方、十个唯一玩家 ID 和完整 K/D/A。D1 以比赛 ID 去重。原始 `.dem`、Steam ID 和玩家身份密钥都保存在 Windows 本机。朋友通过 HTTPS 和共享查看密码读取网页。
 
 点击胜率榜中的玩家名，可查看每个英雄的场次、胜、负和胜率。读取接口 `GET /api/players/{playerId}/heroes` 使用同一查看密码，依据玩家的稳定 ID 汇总已校验的私房记录。`winRate` 是 `0` 到 `1` 的比例。
+
+「数据分析」由 `GET /api/analytics` 提供。选用率以所有已验证比赛为分母。禁用率以带有效 BP 的比赛为分母。同一个英雄每局最多记一次选用或禁用，英雄胜率以实际选用人次计算。使用前三按稳定玩家 ID 汇总，并显示最新昵称。进入 `server/` 后运行 `node --test` 可以检查统计口径。
 
 ## 本机试跑
 
