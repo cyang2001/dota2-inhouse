@@ -3,7 +3,8 @@ import { insertSpatialMatch, listSpatial, listWardEvents } from '../repositories
 import { wardMapScale } from '../domain/spatial.js';
 import { validateMatch } from '../domain/match.js';
 import { buildOverview, playerStandings } from '../services/analytics.js';
-import { playerMaps, wholeLeagueWards } from '../services/spatial.js';
+import { wholeLeagueWards } from '../services/spatial.js';
+import { loadPlayerProfile } from '../services/player-profile.js';
 import { json, readSummary, sameSecret } from './request.js';
 
 export async function upload(request, env) {
@@ -59,10 +60,6 @@ export async function wardEvents(db) {
 }
 
 export async function playerProfile(db, playerId) {
-  const [matches, heroes, spatialRows] = await Promise.all([
-    listMatches(db, playerId), listPlayerHeroes(db, playerId), listSpatial(db, playerId),
-  ]);
-  const player = playerStandings(matches).find(({ id }) => id === playerId);
-  if (!player) return json(404, { error: 'Player not found' });
-  return json(200, { player, heroes, maps: playerMaps(spatialRows) });
+  const profile = await loadPlayerProfile(db, playerId);
+  return profile ? json(200, profile) : json(404, { error: 'Player not found' });
 }

@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dota-inhouse"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["gem-dota==0.14.0", "tzdata==2026.6"]
+
+[project.scripts]
+dota-inhouse = "dota_inhouse.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
