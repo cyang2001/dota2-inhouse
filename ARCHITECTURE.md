@@ -1,10 +1,12 @@
 # 后端架构复核
 
+Python 录像分析按 `parser → analysis → dataset` 独立组织。版本化比赛报告含全局块和按稳定 ID 索引的玩家对象，由本机查询和 BP 样本导出共用。Worker 的现有网页摘要继续由同一次解析产生。详见 [录像分析工程](analytics/docs/data-architecture.md)。
+
 | 当前设计 | 建议与触发点 |
 | --- | --- |
 | D1 每局存一条战绩 JSON，`match_id` 唯一 | 暂时保留。导入可靠，比赛详情也可以直接重建。给摘要定义明确字段和可选字段，用同一份验证规则处理新比赛和历史比赛。 |
 | 首页仍下发全量比赛摘要，打开玩家主页也需要在 D1 按阵容检索历史 | 下一步先让首页对比赛列表分页，比赛详情按 ID 读取。规模需要时，再建可从战绩重算的 `match_players` 投影，给个人战绩查询加索引。 |
-| 文件监听、解析、待上传队列和 HTTP 客户端都在 Windows | 监听和队列在 `watch_replays.py`，解析在 `read_replays.py` 和 `replay_spatial.py`，HTTP 上传及回执在 `upload_replays.py`。升级先迁移 D1，再部署 Worker，最后升级导入器。 |
+| 文件监听、解析、待上传队列和 HTTP 客户端都在 Windows | 监听和队列在 `watch_replays.py`，解析和分析分别在 Python 包的 `parser` 和 `analysis`，HTTP 上传及回执在 `upload_replays.py`。有 D1 变更时先迁移再部署 Worker 与导入器。 |
 | D1 摘要含玩家昵称和稳定 ID | 保留当前派生 ID 用于内战归并。另建由玩家自愿绑定的公开账号映射后，才由服务器查询外部公开战绩。 |
 
 ## 玩家主页和空间数据

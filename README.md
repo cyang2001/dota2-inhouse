@@ -16,8 +16,9 @@
 | [`server/public/app/`](server/public/app/) | 网页路由、总览、玩家主页和地图渲染。 |
 | [`windows/watch_replays.py`](windows/watch_replays.py) | 监听文件、校验录像来源、维护 SQLite 队列。 |
 | [`windows/upload_replays.py`](windows/upload_replays.py) | 发送本地待上传记录并记录回执。 |
-| [`windows/read_replays.py`](windows/read_replays.py) | 用 `gem-dota` 解析赛后战绩，生成统一摘要。 |
-| [`windows/replay_spatial.py`](windows/replay_spatial.py) | 关联插眼者、采样英雄位置并汇总坐标网格。 |
+| [`analytics/src/dota_inhouse/parser/`](analytics/src/dota_inhouse/parser/) | 从 `.dem` 验证房间、解析完整比赛、生成既有网站摘要。 |
+| [`analytics/src/dota_inhouse/analysis/`](analytics/src/dota_inhouse/analysis/) | 玩家与全局分析、经济和经验时间序列、战斗与空间数据。 |
+| [`analytics/src/dota_inhouse/dataset/`](analytics/src/dota_inhouse/dataset/) | 版本化档案、玩家和全局查询、BP 训练样本导出。 |
 
 ## 数据从哪里来
 
@@ -58,15 +59,15 @@ curl.exe -i 'http://127.0.0.1:8787/api/matches' `
 
 打开 `http://127.0.0.1:8787/`，用 `dota` 和 `local-view-password` 登录，应看到一场 15–10 的示例比赛。
 
-Windows 导入器用 Python 3.12 验证过。从仓库根目录运行下面的命令。将录像路径换成本机的 Dota 2 `replays` 文件夹。
+Windows 导入器用 Python 3.12 验证过。从仓库根目录运行下面的命令。将录像路径换成本机的 Dota 2 `replays` 文件夹。已有安装从原路径读取玩家身份密钥。
 
 ```powershell
-py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r windows\requirements.txt
+.\windows\setup.ps1
 $env:DOTA_UPLOAD_TOKEN = 'local-upload-token'
 .\.venv\Scripts\python.exe -u windows\watch_replays.py `
   --replays 'D:\SteamLibrary\steamapps\common\dota 2 beta\game\dota\replays' `
   --database .data\matches.sqlite3 `
+  --analytics-dir .data\analytics `
   --upload-url 'http://127.0.0.1:8787/api/matches'
 ```
 
@@ -79,4 +80,5 @@ $env:DOTA_UPLOAD_TOKEN = 'local-upload-token'
 从最新 `main` 开 `feature/<功能名>` 分支，在该分支验证并开 PR。D1 结构变化先用样例和现有数据副本验证迁移。提交前运行 `git status --short` 检查改动。公开仓库只保存源码、文档和合成示例。项目本地数据、录像、SQLite、密钥和生产配置由 `.gitignore` 排除。
 
 架构复核、录像 BP 实测及 Discord 方案见 [`ARCHITECTURE.md`](ARCHITECTURE.md)。
+Windows 本地分析、字段口径与 BP 数据导出见 [`analytics/docs/data-architecture.md`](analytics/docs/data-architecture.md)。
 Discord 的部署步骤见 [`DISCORD.md`](DISCORD.md)。
