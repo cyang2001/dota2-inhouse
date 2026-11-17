@@ -1,5 +1,5 @@
 const encoder = new TextEncoder();
-const maxUploadBytes = 32 * 1024;
+const maxUploadBytes = 160 * 1024;
 const noCache = 'private, no-store';
 
 export function json(status, data, headers) {
@@ -27,13 +27,13 @@ export async function readSummary(request) {
   if (!request.body || !request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) {
     throw new Error('Expected a JSON match summary');
   }
-  return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(await readBytes(request)));
+  return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(await readBytes(request, maxUploadBytes)));
 }
 
-export async function readBytes(request) {
+export async function readBytes(request, maxBytes = 32 * 1024) {
   if (!request.body) throw new Error('Expected a request body');
   const reader = request.body.getReader();
-  const buffer = new Uint8Array(maxUploadBytes);
+  const buffer = new Uint8Array(maxBytes);
   let length = 0;
   try {
     while (true) {

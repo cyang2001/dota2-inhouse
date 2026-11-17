@@ -12,6 +12,8 @@ from gem.catalog.heroes import HEROES, hero_id
 from gem.binary.stream import DemoStream
 from gem.proto.demo_pb2 import CDemoFileInfo, DEM_FileInfo
 
+from replay_spatial import summarize_spatial
+
 
 ROOT = Path(__file__).resolve().parents[1]
 REPLAY_DIR = Path(r"D:\SteamLibrary\steamapps\common\dota 2 beta\game\dota\replays")
@@ -89,4 +91,5 @@ def summarize(path, identity_key):
             "team": SIDES[player.team], "hero": hero,
             "kills": player.kills, "deaths": player.deaths, "assists": player.assists,
         })
+    result["spatial"] = summarize_spatial(match, players, result["players"])
     return result
