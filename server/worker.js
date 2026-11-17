@@ -3,6 +3,11 @@ const maxUploadBytes = 32 * 1024;
 const noCache = 'private, no-store';
 const sides = new Set(['radiant', 'dire']);
 const practiceLobby = 1;
+const verifiedMatches = `SELECT match_id, played_date, summary FROM matches
+  WHERE json_extract(summary, '$.replay.matchId') = match_id
+    AND json_extract(summary, '$.replay.lobbyType') = ?
+    AND json_extract(summary, '$.replay.radiantPlayers') = 5
+    AND json_extract(summary, '$.replay.direPlayers') = 5`;
 
 function json(status, data, headers) {
   return Response.json(data, { status, headers: { 'Cache-Control': noCache, ...headers } });
@@ -110,12 +115,7 @@ async function upload(request, env) {
 async function serveHome(request, env) {
   const [template, data] = await Promise.all([
     env.ASSETS.fetch(new URL('/index.html', request.url)),
-    env.DB.prepare(`SELECT summary FROM matches
-      WHERE json_extract(summary, '$.replay.matchId') = match_id
-        AND json_extract(summary, '$.replay.lobbyType') = ?
-        AND json_extract(summary, '$.replay.radiantPlayers') = 5
-        AND json_extract(summary, '$.replay.direPlayers') = 5
-      ORDER BY played_date DESC, match_id DESC`).bind(practiceLobby).all(),
+    env.DB.prepare(`${verifiedMatches} ORDER BY played_date DESC, match_id DESC`).bind(practiceLobby).all(),
   ]);
   if (!template.ok) return json(503, { error: 'Website template unavailable' });
   const matches = data.results.map((row) => JSON.parse(row.summary));
@@ -128,6 +128,20 @@ async function serveHome(request, env) {
   } });
 }
 
+async function playerHeroes(db, playerId) {
+  const { results } = await db.prepare(`WITH verified AS (${verifiedMatches})
+    SELECT json_extract(player.value, '$.hero') AS hero, COUNT(*) AS games,
+      SUM(CASE WHEN json_extract(player.value, '$.team') = json_extract(verified.summary, '$.winner')
+        THEN 1 ELSE 0 END) AS wins
+    FROM verified JOIN json_each(verified.summary, '$.players') AS player
+    WHERE json_extract(player.value, '$.id') = ?
+    GROUP BY hero ORDER BY games DESC, wins DESC, hero`).bind(practiceLobby, playerId).all();
+  if (results.length === 0) return json(404, { error: 'Player not found' });
+  return json(200, { playerId, heroes: results.map(({ hero, games, wins }) => ({
+    hero, games, wins, losses: games - wins, winRate: wins / games,
+  })) });
+}
+
 export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
@@ -138,6 +152,8 @@ export default {
     if ((path === '/' || path === '/index.html') && (request.method === 'GET' || request.method === 'HEAD')) {
       return serveHome(request, env);
     }
+    const playerRoute = /^\/api\/players\/([a-f0-9]{32})\/heroes$/.exec(path);
+    if (playerRoute && request.method === 'GET') return playerHeroes(env.DB, playerRoute[1]);
     return json(404, { error: 'Page not found' });
   },
 };
