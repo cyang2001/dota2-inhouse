@@ -1,5 +1,5 @@
 import { json, sameSecret, viewerPassword } from './src/http/request.js';
-import { analytics, leagueWards, playerHeroes, playerProfile, serveHome, upload } from './src/http/site.js';
+import { analytics, leagueWards, playerHeroes, playerProfile, serveHome, upload, wardEvents } from './src/http/site.js';
 import { discordInteraction } from './src/integrations/discord.js';
 
 export default {
@@ -22,6 +22,7 @@ export default {
     }
     if (path === '/api/analytics' && request.method === 'GET') return analytics(env.DB);
     if (path === '/api/analytics/wards' && request.method === 'GET') return leagueWards(env.DB);
+    if (path === '/api/analytics/ward-events' && request.method === 'GET') return wardEvents(env.DB);
     return json(404, { error: 'Page not found' });
   },
 };

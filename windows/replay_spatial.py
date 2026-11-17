@@ -6,6 +6,7 @@ from gem.catalog.map import MAP_XMAX, MAP_XMIN, MAP_YMAX, MAP_YMIN
 
 GRID_SIZE = 36
 ACTIVITY_INTERVAL = 5
+MAP_SCALE = 16383
 
 
 def grid_cell(x, y):
@@ -16,6 +17,15 @@ def grid_cell(x, y):
     if 0 <= row < GRID_SIZE and 0 <= col < GRID_SIZE:
         return row * GRID_SIZE + col
     return None
+
+
+def map_position(x, y):
+    if grid_cell(x, y) is None:
+        return None
+    return (
+        round((x - MAP_XMIN) * MAP_SCALE / (MAP_XMAX - MAP_XMIN)),
+        round((MAP_YMAX - y) * MAP_SCALE / (MAP_YMAX - MAP_YMIN)),
+    )
 
 
 def activity_cells(match, player):
@@ -39,19 +49,27 @@ def summarize_spatial(match, players, public_players):
     owners = {p.player_id: (p, public["id"]) for p, public in zip(players, public_players, strict=True)}
     wards = {public["id"]: {"observer": Counter(), "sentry": Counter()} for public in public_players}
     unattributed = {"observer": 0, "sentry": 0}
+    events = []
     for ward in match.wards:
         if ward.ward_type not in unattributed:
             continue
         owner = owners.get(ward.player_id)
         cell = grid_cell(ward.x, ward.y)
-        if owner is None or owner[0].team != ward.team or cell is None:
+        player_id = owner[1] if owner is not None and owner[0].team == ward.team else None
+        if cell is None or player_id is None:
             unattributed[ward.ward_type] += 1
-            continue
-        wards[owner[1]][ward.ward_type][cell] += 1
+        else:
+            wards[player_id][ward.ward_type][cell] += 1
+        if cell is not None:
+            x, y = map_position(ward.x, ward.y)
+            seconds = match.game_clock.game_time_at(ward.tick) if match.game_clock is not None else None
+            events.append([ward.ward_type, ward.team if ward.team in (2, 3) else None,
+                           player_id, floor(seconds) if seconds is not None else None, x, y])
 
     return {
-        "version": 1,
+        "version": 2,
         "unattributedWards": unattributed,
+        "wardEvents": events,
         "players": {
             public_id: {
                 "activity": activity_cells(match, player),

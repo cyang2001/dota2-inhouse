@@ -144,6 +144,32 @@
     .heatmap { margin: 0; min-width: 0; }
     .heatmap canvas { display: block; width: 100%; max-width: 420px; height: auto; margin: 8px 0; border: 1px solid var(--line); }
     .heatmap p { margin: 5px 0; min-height: 1.5em; }
+    .ward-map { padding: 12px; max-width: 1010px; margin-inline: auto; }
+    .ward-controls, .ward-filter, .ward-modes, .ward-meta, .ward-legend { display: flex; align-items: center; gap: 8px; }
+    .ward-controls, .ward-meta { flex-wrap: wrap; }
+    .ward-controls { gap: 10px 16px; margin-bottom: 14px; font-size: 15px; }
+    .ward-filter { color: var(--text); white-space: nowrap; }
+    .ward-filter select, .ward-modes button, .ward-retry {
+      color: var(--text); background: #182238; font: inherit; border: 1px solid var(--line); border-radius: 5px;
+      min-height: 40px; padding: 6px 12px; cursor: pointer;
+    }
+    .ward-modes button[aria-pressed="true"] { color: #14171e; background: var(--gold); border-color: var(--gold); }
+    .ward-frame { position: relative; aspect-ratio: 1; overflow: hidden; background: #131b24; border: 2px solid var(--line); border-radius: 5px; }
+    .ward-background, .ward-layer { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+    .ward-background { object-fit: cover; }
+    .ward-layer { cursor: crosshair; }
+    .ward-corner, .ward-tooltip { position: absolute; color: #fff; background: #080b12de; pointer-events: none; }
+    .ward-corner { padding: 3px 8px; font-weight: 700; }
+    .ward-radiant { bottom: 0; left: 0; }
+    .ward-dire { top: 0; right: 0; }
+    .ward-tooltip { padding: 6px 9px; border-radius: 4px; white-space: pre-line; width: max-content; max-width: min(220px, 47%); overflow-wrap: anywhere; transform: translate(8px, calc(-100% - 8px)); }
+    .ward-tooltip-left { transform: translate(calc(-100% - 8px), calc(-100% - 8px)); }
+    .ward-tooltip-below { transform: translate(8px, 8px); }
+    .ward-tooltip-left.ward-tooltip-below { transform: translate(calc(-100% - 8px), 8px); }
+    .ward-meta { margin: 8px 0 0; min-height: 22px; font-size: 12px; color: var(--muted); gap: 8px 16px; }
+    .ward-meta a { margin-left: auto; text-decoration: underline; }
+    .ward-observer { color: #2ae5df; }
+    .ward-sentry { color: #ff777a; }
     .profile-back { margin: 0 0 12px; display: inline-block; }
     .profile-table { min-width: 400px; }
     @media (max-width: 920px) {
@@ -221,8 +247,8 @@
     <section id="analytics" aria-label="全局数据分析" hidden>
       <div class="analytics-summary" id="analytics-summary"></div>
       <section class="panel map-panel" aria-labelledby="league-wards-heading">
-        <div class="panel-head"><h2 id="league-wards-heading">全局眼位热图</h2><span id="league-wards-coverage" class="panel-meta" role="status"></span></div>
-        <div class="heatmaps" id="league-wards"></div>
+        <div class="panel-head"><h2 id="league-wards-heading">全局眼位地图</h2></div>
+        <div class="ward-map" id="league-wards"></div>
       </section>
       <section class="panel">
         <div class="panel-head"><h2>英雄统计</h2><span id="analytics-coverage" class="panel-meta"></span></div>
@@ -244,7 +270,8 @@
       <div id="profile-content" hidden>
         <div class="analytics-summary" id="profile-summary"></div>
         <section class="panel map-panel" aria-labelledby="profile-maps-heading">
-          <div class="panel-head"><h2 id="profile-maps-heading">活动与眼位热图</h2><span id="profile-coverage" class="panel-meta"></span></div>
+          <div class="panel-head"><h2 id="profile-maps-heading">眼位地图与活动热图</h2><span id="profile-coverage" class="panel-meta"></span></div>
+          <div class="ward-map" id="profile-wards"></div>
           <div class="heatmaps" id="profile-maps"></div>
         </section>
         <section class="panel" aria-labelledby="profile-heroes-heading">

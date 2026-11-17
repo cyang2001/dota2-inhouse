@@ -1,5 +1,6 @@
 import { element, formatRate, heroLabel, node, portrait } from './dom.js';
 import { heatmap } from './heatmaps.js';
+import { mountWardMap } from './ward-map.js';
 
 let pending;
 export async function showProfile(playerId) {
@@ -38,14 +39,13 @@ function renderProfile({ player, heroes, maps }) {
     return card;
   }));
   element('profile-coverage').textContent = `活动覆盖 ${maps.activityMatches}/${player.games} 局 · 眼位覆盖 ${maps.wardMatches}/${player.games} 局`;
+  const wards = node('div');
+  element('profile-wards').replaceChildren(wards);
+  mountWardMap(wards, player.id);
   const mapsContainer = element('profile-maps');
-  const charts = [];
-  if (maps.activityMatches) charts.push(heatmap('activity', maps.gridSize, maps.activity, maps.activityInterval));
-  if (maps.wardMatches) {
-    for (const kind of ['observer', 'sentry']) charts.push(heatmap(kind, maps.gridSize, maps[kind]));
-  }
-  if (!charts.length) charts.push(node('p', 'panel-meta', '这位玩家的录像暂未回填热图数据。'));
-  mapsContainer.replaceChildren(...charts);
+  mapsContainer.replaceChildren(maps.activityMatches
+    ? heatmap(maps.gridSize, maps.activity, maps.activityInterval)
+    : node('p', 'panel-meta', '这位玩家的录像暂未回填活动热图。'));
   element('profile-heroes').replaceChildren(...heroes.map((hero) => {
     const tr = node('tr');
     const identity = node('td');

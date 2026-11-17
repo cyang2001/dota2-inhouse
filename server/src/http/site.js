@@ -1,5 +1,6 @@
 import { insertMatch, listMatches, listPlayerHeroes } from '../repositories/matches.js';
-import { insertSpatialMatch, listSpatial } from '../repositories/spatial.js';
+import { insertSpatialMatch, listSpatial, listWardEvents } from '../repositories/spatial.js';
+import { wardMapScale } from '../domain/spatial.js';
 import { validateMatch } from '../domain/match.js';
 import { buildOverview, playerStandings } from '../services/analytics.js';
 import { playerMaps, wholeLeagueWards } from '../services/spatial.js';
@@ -51,6 +52,10 @@ export async function analytics(db) {
 
 export async function leagueWards(db) {
   return json(200, wholeLeagueWards(await listSpatial(db)));
+}
+
+export async function wardEvents(db) {
+  return json(200, { coordinateScale: wardMapScale, matches: await listWardEvents(db) });
 }
 
 export async function playerProfile(db, playerId) {

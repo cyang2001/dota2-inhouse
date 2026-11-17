@@ -1,5 +1,5 @@
 import { practiceLobby } from '../domain/match.js';
-import { spatialVersion } from '../domain/spatial.js';
+import { wardEventVersion } from '../domain/spatial.js';
 import { prepareMatchInsert, verifiedMatches } from './matches.js';
 
 const matchingRoster = `SELECT existing.match_id FROM (${verifiedMatches}) AS existing
@@ -26,8 +26,16 @@ export async function listSpatial(db, playerId) {
   const filter = playerId ? "AND json_type(spatial.payload, '$.players.' || ?) = 'object'" : '';
   const { results } = await db.prepare(`SELECT ${projection} AS payload
     FROM (${verifiedMatches}) AS verified JOIN match_spatial AS spatial USING (match_id)
-    WHERE spatial.version = ? ${filter}`).bind(...(playerId
-      ? [playerId, practiceLobby, spatialVersion, playerId]
-      : [practiceLobby, spatialVersion])).all();
+    WHERE spatial.version = (SELECT MAX(version) FROM match_spatial WHERE match_id = verified.match_id AND version <= ?)
+    ${filter}`).bind(...(playerId
+      ? [playerId, practiceLobby, wardEventVersion, playerId]
+      : [practiceLobby, wardEventVersion])).all();
   return results.map(({ payload }) => JSON.parse(payload));
+}
+
+export async function listWardEvents(db) {
+  const { results } = await db.prepare(`SELECT verified.match_id, json_extract(spatial.payload, '$.wardEvents') AS events
+    FROM (${verifiedMatches}) AS verified JOIN match_spatial AS spatial USING (match_id)
+    WHERE spatial.version = ? ORDER BY verified.played_date DESC, verified.match_id DESC`).bind(practiceLobby, wardEventVersion).all();
+  return results.map(({ match_id, events }) => ({ matchId: match_id, events: JSON.parse(events) }));
 }

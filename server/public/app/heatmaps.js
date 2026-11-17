@@ -1,16 +1,11 @@
-import { element, node } from './dom.js';
+import { node } from './dom.js';
 
-const wardTitles = { observer: '侦察守卫（假眼）', sentry: '岗哨守卫（真眼）' };
-const colors = { activity: '99, 212, 255', observer: '253, 197, 87', sentry: '196, 156, 255' };
-
-export function heatmap(kind, gridSize, data, interval) {
-  const title = wardTitles[kind] ?? '英雄活动';
+export function heatmap(gridSize, data, interval) {
+  const title = '英雄活动';
   const figure = node('figure', 'heatmap');
-  const unit = kind === 'activity' ? '个位置样本' : '次放置';
+  const unit = '个位置样本';
   figure.append(node('figcaption', '', title));
-  const caption = node('p', 'panel-meta', kind === 'activity'
-    ? `${data.total} ${unit} · 每 ${interval} 秒至多取样一次`
-    : `${data.total} ${unit}${data.unattributed ? ` · ${data.unattributed} 次缺少可用归属或坐标` : ''}`);
+  const caption = node('p', 'panel-meta', `${data.total} ${unit} · 每 ${interval} 秒至多取样一次`);
   if (!data.total) {
     figure.append(caption);
     return figure;
@@ -40,7 +35,7 @@ export function heatmap(kind, gridSize, data, interval) {
   for (const [cell, count] of data.cells) {
     const x = cell % gridSize;
     const y = Math.floor(cell / gridSize);
-    ctx.fillStyle = `rgba(${colors[kind]}, ${0.23 + 0.77 * Math.sqrt(count / max)})`;
+    ctx.fillStyle = `rgba(99, 212, 255, ${0.23 + 0.77 * Math.sqrt(count / max)})`;
     ctx.fillRect(x * step, y * step, step, step);
   }
   ctx.fillStyle = '#d3dde9';
@@ -59,22 +54,4 @@ export function heatmap(kind, gridSize, data, interval) {
   });
   chart.addEventListener('pointerleave', () => { readout.textContent = hint; });
   return figure;
-}
-
-let wardsRequest;
-export function loadLeagueWards() {
-  if (wardsRequest) return;
-  const coverage = element('league-wards-coverage');
-  coverage.textContent = '载入眼位数据…';
-  wardsRequest = fetch('/api/analytics/wards').then(async (response) => {
-    if (!response.ok) throw new Error('Ward data unavailable');
-    const data = await response.json();
-    coverage.textContent = data.wardMatches ? `基于 ${data.wardMatches} 局有眼位数据的录像` : '暂无眼位数据';
-    if (data.wardMatches) {
-      element('league-wards').replaceChildren(...Object.keys(wardTitles).map((kind) => heatmap(kind, data.gridSize, data[kind])));
-    }
-  }).catch(() => {
-    coverage.textContent = '眼位加载失败，请重新进入数据分析。';
-    wardsRequest = undefined;
-  });
 }
