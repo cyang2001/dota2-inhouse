@@ -1,5 +1,5 @@
 import { json, sameSecret, viewerPassword } from './src/http/request.js';
-import { analytics, playerHeroes, serveHome, upload } from './src/http/site.js';
+import { analytics, leagueWards, playerHeroes, playerProfile, serveHome, upload } from './src/http/site.js';
 import { discordInteraction } from './src/integrations/discord.js';
 
 export default {
@@ -13,9 +13,15 @@ export default {
     if ((path === '/' || path === '/index.html') && (request.method === 'GET' || request.method === 'HEAD')) {
       return serveHome(request, env);
     }
-    const playerRoute = /^\/api\/players\/([a-f0-9]{32})\/heroes$/.exec(path);
-    if (playerRoute && request.method === 'GET') return playerHeroes(env.DB, playerRoute[1]);
+    if (/^\/app\/[a-z-]+\.js$/.test(path) && (request.method === 'GET' || request.method === 'HEAD')) {
+      return env.ASSETS.fetch(request);
+    }
+    const playerRoute = /^\/api\/players\/([a-f0-9]{32})(\/heroes)?$/.exec(path);
+    if (playerRoute && request.method === 'GET') {
+      return playerRoute[2] ? playerHeroes(env.DB, playerRoute[1]) : playerProfile(env.DB, playerRoute[1]);
+    }
     if (path === '/api/analytics' && request.method === 'GET') return analytics(env.DB);
+    if (path === '/api/analytics/wards' && request.method === 'GET') return leagueWards(env.DB);
     return json(404, { error: 'Page not found' });
   },
 };

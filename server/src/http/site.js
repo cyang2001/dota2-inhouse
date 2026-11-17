@@ -1,6 +1,8 @@
 import { insertMatch, listMatches, listPlayerHeroes } from '../repositories/matches.js';
+import { insertSpatialMatch, listSpatial } from '../repositories/spatial.js';
 import { validateMatch } from '../domain/match.js';
 import { buildOverview, playerStandings } from '../services/analytics.js';
+import { playerMaps, wholeLeagueWards } from '../services/spatial.js';
 import { json, readSummary, sameSecret } from './request.js';
 
 export async function upload(request, env) {
@@ -14,8 +16,10 @@ export async function upload(request, env) {
   } catch (error) {
     return json(error instanceof RangeError ? 413 : 400, { error: error.message });
   }
-  const inserted = await insertMatch(env.DB, match);
-  return json(inserted ? 201 : 200, { matchId: match.matchId, inserted });
+  const { spatial, ...summary } = match;
+  const result = spatial ? await insertSpatialMatch(env.DB, summary, spatial) : { inserted: await insertMatch(env.DB, summary) };
+  if (result.spatialAccepted === false) return json(409, { error: 'Spatial roster does not match the stored match' });
+  return json(result.inserted ? 201 : 200, { matchId: match.matchId, ...result });
 }
 
 export async function serveHome(request, env) {
@@ -43,4 +47,17 @@ export async function playerHeroes(db, playerId) {
 
 export async function analytics(db) {
   return json(200, buildOverview(await listMatches(db)));
+}
+
+export async function leagueWards(db) {
+  return json(200, wholeLeagueWards(await listSpatial(db)));
+}
+
+export async function playerProfile(db, playerId) {
+  const [matches, heroes, spatialRows] = await Promise.all([
+    listMatches(db, playerId), listPlayerHeroes(db, playerId), listSpatial(db, playerId),
+  ]);
+  const player = playerStandings(matches).find(({ id }) => id === playerId);
+  if (!player) return json(404, { error: 'Player not found' });
+  return json(200, { player, heroes, maps: playerMaps(spatialRows) });
 }

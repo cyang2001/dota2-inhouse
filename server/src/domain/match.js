@@ -1,3 +1,5 @@
+import { validateSpatial } from './spatial.js';
+
 export const practiceLobby = 1;
 const sides = new Set(['radiant', 'dire']);
 
@@ -41,8 +43,9 @@ export function validateMatch(data) {
   });
   if (radiant !== 5) throw new Error('Expected five players on each team');
   const draft = data.draft == null ? undefined : validateDraft(data.draft, players);
+  const spatial = data.spatial == null ? undefined : validateSpatial(data.spatial, players);
   const { matchId, winner, duration, radiantScore, direScore, playedDate, savedDate } = data;
-  return { matchId, category: 'inhouse', winner, duration, radiantScore, direScore, playedDate, savedDate, players, draft,
+  return { matchId, category: 'inhouse', winner, duration, radiantScore, direScore, playedDate, savedDate, players, draft, spatial,
     replay: { matchId, lobbyType: replay.lobbyType, radiantPlayers: replay.radiantPlayers, direPlayers: replay.direPlayers } };
 }
 
