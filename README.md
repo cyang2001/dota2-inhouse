@@ -7,6 +7,7 @@
 | 文件 | 作用 |
 | --- | --- |
 | [`server/worker.js`](server/worker.js) | 上传鉴权、私人房间校验、去重和网页读取。 |
+| [`server/matches.js`](server/matches.js) | D1 写入、已验证比赛查询和玩家英雄统计。网页与后续 Discord 功能可以共用。 |
 | [`server/schema.sql`](server/schema.sql) | D1 的 `matches` 表。比赛 ID 是主键。 |
 | [`server/public/index.html`](server/public/index.html) | 托管页面模板。Worker 从 D1 加载数据，页面计算胜率榜。 |
 | [`windows/watch_replays.py`](windows/watch_replays.py) | 监听文件、校验来源、保存本地队列、重试上传。 |
@@ -64,3 +65,4 @@ $env:DOTA_UPLOAD_TOKEN = 'local-upload-token'
 从最新 `main` 开 `feature/<功能名>` 分支，在该分支验证并开 PR。D1 结构变化先用样例和现有数据副本验证迁移。提交前运行 `git status --short` 检查改动。GitHub 仓库建议设为私有。项目本地数据、录像、SQLite、密钥和生产配置由 `.gitignore` 排除。
 
 架构复核、录像 BP 实测及 Discord 方案见 [`ARCHITECTURE.md`](ARCHITECTURE.md)。
+Discord 的部署步骤见 [`DISCORD.md`](DISCORD.md)。
