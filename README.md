@@ -62,7 +62,7 @@ $env:DOTA_UPLOAD_TOKEN = 'local-upload-token'
 
 部署时，在自己的 Cloudflare 账户创建 D1，把数据库 ID 填入单独保存的生产 Wrangler 配置。初始化生产表后，用 `wrangler deploy --secrets-file <本机密钥文件>` 同时部署代码和 `UPLOAD_TOKEN`、`VIEW_PASSWORD`。Windows 使用同一个上传密钥。 [D1 入门](https://developers.cloudflare.com/d1/get-started/) · [Workers 密钥](https://developers.cloudflare.com/workers/configuration/secrets/)
 
-从最新 `main` 开 `feature/<功能名>` 分支，在该分支验证并开 PR。D1 结构变化先用样例和现有数据副本验证迁移。提交前运行 `git status --short` 检查改动。GitHub 仓库建议设为私有。项目本地数据、录像、SQLite、密钥和生产配置由 `.gitignore` 排除。
+从最新 `main` 开 `feature/<功能名>` 分支，在该分支验证并开 PR。D1 结构变化先用样例和现有数据副本验证迁移。提交前运行 `git status --short` 检查改动。公开仓库只保存源码、文档和合成示例。项目本地数据、录像、SQLite、密钥和生产配置由 `.gitignore` 排除。
 
 架构复核、录像 BP 实测及 Discord 方案见 [`ARCHITECTURE.md`](ARCHITECTURE.md)。
 Discord 的部署步骤见 [`DISCORD.md`](DISCORD.md)。
