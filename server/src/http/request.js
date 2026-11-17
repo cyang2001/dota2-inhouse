@@ -27,6 +27,11 @@ export async function readSummary(request) {
   if (!request.body || !request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) {
     throw new Error('Expected a JSON match summary');
   }
+  return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(await readBytes(request)));
+}
+
+export async function readBytes(request) {
+  if (!request.body) throw new Error('Expected a request body');
   const reader = request.body.getReader();
   const buffer = new Uint8Array(maxUploadBytes);
   let length = 0;
@@ -41,5 +46,5 @@ export async function readSummary(request) {
   } finally {
     await reader.cancel().catch(() => {});
   }
-  return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(buffer.subarray(0, length)));
+  return buffer.subarray(0, length);
 }
