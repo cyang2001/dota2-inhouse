@@ -1,4 +1,5 @@
 import { element, heroLabel, node, playerName } from './dom.js';
+import { mountWardMap } from './ward-map.js';
 
 const sections = [
   ['overview', '总览'], ['performance', '表现'], ['benchmarks', '内战基准'], ['draft', 'BP'], ['farm', '对线与补刀'], ['combat', '战斗'],
