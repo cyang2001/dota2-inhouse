@@ -1,6 +1,7 @@
 import { element, formatRate, heroLabel, node, portrait } from './dom.js';
 import { heatmap } from './heatmaps.js';
 import { mountWardMap } from './ward-map.js';
+import { matchLink, rememberMatchHistory } from './match-navigation.js';
 
 let pending;
 export async function showProfile(playerId) {
@@ -31,6 +32,7 @@ export async function showProfile(playerId) {
 }
 
 function renderProfile({ player, heroes, maps, accountIds = [player.id] }) {
+  rememberMatchHistory(player.id, heroes);
   element('heading').textContent = player.name;
   const stats = [['比赛', player.games], ['胜场', player.wins], ['负场', player.losses], ['胜率', formatRate(player.winRate)]];
   element('profile-summary').replaceChildren(...stats.map(([label, value]) => {
@@ -54,7 +56,7 @@ function renderProfile({ player, heroes, maps, accountIds = [player.id] }) {
     const games = hero.matches ?? [];
     const makeLink = (game, text) => {
       const link = node('a', 'player-link');
-      link.href = `#match/${game.matchId}`;
+      link.href = matchLink(game.matchId, player.id, hero.hero);
       link.append(text);
       return link;
     };

@@ -3,6 +3,7 @@ import { loadAnalytics } from './analytics.js';
 import { showProfile } from './profile.js';
 import { mountWardMap } from './ward-map.js';
 import { mountMatchAnalysis } from './match-analysis.js';
+import { renderMatchNavigation } from './match-navigation.js';
 
 const categories = { inhouse: '私人房间', ranked: '天梯', weekend: '周末联赛', casual: '普通匹配', unknown: '类型待确认' };
 const inhouseMatches = matches.filter((match) => match.category === 'inhouse' && match.winner);
@@ -126,7 +127,7 @@ function renderDetails() {
 }
 
 function route() {
-  const selection = location.hash.match(/^#match(?:\/(\d+))?$/);
+  const selection = location.hash.match(/^#match(?:\/(\d+))?(?:\?(.*))?$/);
   current = matches.find((match) => match.matchId === selection?.[1]) ?? featured;
   const details = Boolean(selection && current);
   const analytical = location.hash === '#analytics';
@@ -136,6 +137,7 @@ function route() {
   element('profile').hidden = !profile;
   element('overview').hidden = details || analytical || profile;
   element('match-layout').hidden = !details;
+  renderMatchNavigation(details ? current : null, selection?.[2]);
   mountMatchAnalysis(details ? current : null);
   element('heading').textContent = profile ? '玩家主页' : analytical ? '数据分析' : details ? '比赛详情' : '内战战绩';
   element('subtitle').textContent = analytical || profile ? '全部已验证的私人房间 5v5' : details ? `${matchDate(current)} · 5 对 5` : `已导入 ${matches.length} 局录像 · ${inhouseMatches.length} 局计入内战胜率榜`;
