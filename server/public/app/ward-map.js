@@ -83,8 +83,9 @@ function drawDensity(context, points) {
 }
 
 function createMap(root, data, playerId, matchId) {
-  const eligible = data.matches.filter(({ matchId }) => !playerId || playerNames.get(matchId)?.has(playerId));
-  const points = eligible.flatMap(({ matchId, events }) => events.filter((event) => !playerId || event[2] === playerId)
+  const ids = playerId && new Set(Array.isArray(playerId) ? playerId : [playerId]);
+  const eligible = data.matches.filter(({ matchId }) => !ids || [...ids].some(id => playerNames.get(matchId)?.has(id)));
+  const points = eligible.flatMap(({ matchId, events }) => events.filter((event) => !ids || ids.has(event[2]))
     .map(([kind, team, owner, seconds, x, y]) => ({
       kind, team, owner, seconds, matchId, x: x / data.coordinateScale * mapSize, y: y / data.coordinateScale * mapSize,
     })));

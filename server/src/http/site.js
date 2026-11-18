@@ -1,8 +1,9 @@
-import { insertMatch, listMatches, listPlayerHeroes } from '../repositories/matches.js';
+import { insertMatch, listMatches } from '../repositories/matches.js';
 import { insertSpatialMatch, listSpatial, listWardEvents } from '../repositories/spatial.js';
 import { wardMapScale } from '../domain/spatial.js';
 import { validateMatch } from '../domain/match.js';
-import { buildOverview, playerStandings } from '../services/analytics.js';
+import { buildOverview } from '../services/analytics.js';
+import { accountMatches, accountStandings } from '../services/account-projection.js';
 import { wholeLeagueWards } from '../services/spatial.js';
 import { loadPlayerProfile } from '../services/player-profile.js';
 import { readDisplay } from '../repositories/display-snapshot.js';
@@ -33,7 +34,7 @@ export async function serveHome(request, env) {
   ]);
   if (!template.ok) return json(503, { error: 'Website template unavailable' });
   const contents = JSON.stringify(matches).replace(/</g, '\\u003c');
-  const standings = JSON.stringify(snapshot ?? playerStandings(matches)).replace(/</g, '\\u003c');
+  const standings = JSON.stringify(snapshot ?? accountStandings(matches, await links(env.DB))).replace(/</g, '\\u003c');
   const body = (await template.text()).replace('"__MATCHES_FROM_D1__"', () => contents)
     .replace('"__STANDINGS_FROM_D1__"', () => standings);
   return new Response(request.method === 'HEAD' ? null : body, { headers: {
@@ -44,13 +45,12 @@ export async function serveHome(request, env) {
 }
 
 export async function playerHeroes(db, playerId) {
-  const heroes = await readDisplay(db, `profiles.${playerId}.heroes`) ?? await listPlayerHeroes(db, playerId);
-  if (heroes.length === 0) return json(404, { error: 'Player not found' });
-  return json(200, { playerId, heroes });
+  const profile = await resolveProfile(db, playerId);
+  return profile ? json(200, { playerId: profile.player.id, heroes: profile.heroes }) : json(404, { error: 'Player not found' });
 }
 
 export async function analytics(db) {
-  return json(200, await readDisplay(db, 'overview') ?? buildOverview(await listMatches(db)));
+  return json(200, await readDisplay(db, 'overview') ?? buildOverview(accountMatches(await listMatches(db), await links(db))));
 }
 
 export async function leagueWards(db) {
@@ -62,6 +62,16 @@ export async function wardEvents(db, matchId) {
 }
 
 export async function playerProfile(db, playerId) {
-  const profile = await readDisplay(db, `profiles.${playerId}`) ?? await loadPlayerProfile(db, playerId);
+  const profile = await resolveProfile(db, playerId);
   return profile ? json(200, profile) : json(404, { error: 'Player not found' });
+}
+
+async function links(db) {
+  return await readDisplay(db, 'accountLinks', false) ?? {};
+}
+
+async function resolveProfile(db, playerId) {
+  const accountLinks = await links(db);
+  const id = accountLinks[playerId] ?? playerId;
+  return await readDisplay(db, `profiles.${id}`) ?? await loadPlayerProfile(db, id, accountLinks);
 }

@@ -24,13 +24,13 @@ export async function insertSpatialMatch(db, match, spatial) {
 export async function listSpatial(db, playerId) {
   const projection = playerId ? "json_extract(spatial.payload, '$.players.' || ?)" : 'spatial.payload';
   const filter = playerId ? "AND json_type(spatial.payload, '$.players.' || ?) = 'object'" : '';
-  const { results } = await db.prepare(`SELECT ${projection} AS payload
+  const { results } = await db.prepare(`SELECT verified.match_id, ${projection} AS payload
     FROM (${verifiedMatches}) AS verified JOIN match_spatial AS spatial USING (match_id)
     WHERE spatial.version = (SELECT MAX(version) FROM match_spatial WHERE match_id = verified.match_id AND version <= ?)
     ${filter}`).bind(...(playerId
       ? [playerId, practiceLobby, wardEventVersion, playerId]
       : [practiceLobby, wardEventVersion])).all();
-  return results.map(({ payload }) => JSON.parse(payload));
+  return results.map(({ match_id, payload }) => playerId ? JSON.parse(payload) : { matchId: match_id, ...JSON.parse(payload) });
 }
 
 export async function listWardEvents(db, matchId) {

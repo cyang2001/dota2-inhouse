@@ -1,12 +1,13 @@
-import { listMatches, listPlayerHeroes } from '../repositories/matches.js';
+import { listMatches } from '../repositories/matches.js';
 import { listSpatial } from '../repositories/spatial.js';
 import { playerStandings } from './analytics.js';
-import { playerMaps } from './spatial.js';
+import { accountMatches, buildAccountProfile } from './account-projection.js';
 
-export async function loadPlayerProfile(db, playerId) {
-  const [matches, heroes, spatialRows] = await Promise.all([
-    listMatches(db, playerId), listPlayerHeroes(db, playerId), listSpatial(db, playerId),
+export async function loadPlayerProfile(db, playerId, accountLinks) {
+  const [matches, spatial] = await Promise.all([
+    listMatches(db), listSpatial(db),
   ]);
-  const player = playerStandings(matches).find(({ id }) => id === playerId);
-  return player ? { player, heroes, maps: playerMaps(spatialRows) } : null;
+  const projected = accountMatches(matches, accountLinks);
+  const player = playerStandings(projected).find(({ id }) => id === playerId);
+  return player ? buildAccountProfile({ matches, projected, spatial, player, accountLinks }) : null;
 }

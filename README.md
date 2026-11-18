@@ -81,6 +81,8 @@ $env:DOTA_UPLOAD_TOKEN = 'local-upload-token'
 
 比赛详情分析使用 `migrations/0004_match_analysis.sql`。Windows 导入器启用 `--publish-analysis` 后，从本机 `--analytics-dir` 的报告生成单场展示数据并上传。线上按比赛 ID 读取。走位最多每 10 秒保留一个采样点，基准只用此前日期的同英雄内战数据。
 
+Windows 导入器可加 `--account-map <本机私有 JSON>`，JSON 的键为大号 SteamID64 字符串，值为小号 SteamID64 字符串数组。使用原录像身份密钥，账号表留在本机。
+
 从最新 `main` 开 `feature/<功能名>` 分支，在该分支验证并开 PR。D1 结构变化先用样例和现有数据副本验证迁移。提交前运行 `git status --short` 检查改动。公开仓库只保存源码、文档和合成示例。项目本地数据、录像、SQLite、密钥和生产配置由 `.gitignore` 排除。
 
 架构复核、录像 BP 实测及 Discord 方案见 [`ARCHITECTURE.md`](ARCHITECTURE.md)。
