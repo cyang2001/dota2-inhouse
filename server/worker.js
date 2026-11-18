@@ -2,10 +2,13 @@ import { json, sameSecret, viewerPassword } from './src/http/request.js';
 import { analytics, leagueWards, playerHeroes, playerProfile, serveHome, upload, wardEvents } from './src/http/site.js';
 import { discordInteraction } from './src/integrations/discord.js';
 import { displaySnapshot } from './src/http/display-snapshot.js';
+import { getMatchAnalysis, uploadMatchAnalysis } from './src/http/match-analysis.js';
 
 export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
+    const analysisRoute = /^\/api\/matches\/([1-9]\d{0,19})\/analysis$/.exec(path);
+    if (analysisRoute && request.method === 'POST') return uploadMatchAnalysis(request, env, analysisRoute[1]);
     if (path === '/discord/interactions' && request.method === 'POST') return discordInteraction(request, env);
     if (path === '/api/matches' && request.method === 'POST') return upload(request, env);
     if (path === '/api/display-snapshot' && ['GET', 'POST'].includes(request.method)) return displaySnapshot(request, env);
@@ -27,6 +30,7 @@ export default {
     if (path === '/api/analytics/ward-events' && request.method === 'GET') return wardEvents(env.DB);
     const matchWards = /^\/api\/matches\/([1-9]\d{0,19})\/wards$/.exec(path);
     if (matchWards && request.method === 'GET') return wardEvents(env.DB, matchWards[1]);
+    if (analysisRoute && request.method === 'GET') return getMatchAnalysis(env.DB, analysisRoute[1]);
     return json(404, { error: 'Page not found' });
   },
 };

@@ -1,4 +1,5 @@
 import { matches, node } from './dom.js';
+import { addWardLens } from './ward-lens.js';
 
 // gem's 7.41 projection uses the central square of the background image.
 const mapSource = 'https://whanyu1212.github.io/gem-dota/figures/map.webp';
@@ -81,7 +82,7 @@ function drawDensity(context, points) {
   }
 }
 
-function createMap(root, data, playerId) {
+function createMap(root, data, playerId, matchId) {
   const eligible = data.matches.filter(({ matchId }) => !playerId || playerNames.get(matchId)?.has(playerId));
   const points = eligible.flatMap(({ matchId, events }) => events.filter((event) => !playerId || event[2] === playerId)
     .map(([kind, team, owner, seconds, x, y]) => ({
@@ -127,6 +128,7 @@ function createMap(root, data, playerId) {
   source.rel = 'noopener noreferrer';
   metadata.append(summary, legend, status, source);
   root.replaceChildren(controls, frame, metadata);
+  if (matchId) addWardLens(root, image, canvas);
 
   const context = canvas.getContext('2d');
   let density = false;
@@ -188,7 +190,7 @@ export async function mountWardMap(root, playerId, matchId) {
     if (matchId && data.matches.length === 0) {
       root.replaceChildren(node('p', 'empty', '这局暂时没有眼位记录。'));
     } else {
-      createMap(root, data, playerId);
+      createMap(root, data, playerId, matchId);
     }
     root.dataset.wardMap = 'ready';
   } catch {

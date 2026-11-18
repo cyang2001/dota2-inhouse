@@ -20,6 +20,7 @@ from dota_inhouse.dataset.archive import report_exists, save_report
 from build_preview import write_preview
 from read_replays import REPLAY_DIR, ROOT, read_file_info
 from upload_replays import upload_pending
+from publish_match_analysis import publish_pending_analysis
 
 
 def fingerprint(path):
@@ -84,6 +85,7 @@ def watch(db, options, identity_key, token):
     pending_preview = options.preview is not None
     upload_after = 0
     snapshot_after = 0
+    analysis_after = 0
     print(f"Watching {options.replays}", flush=True)
     while time.monotonic() < deadline:
         upload_after = retry_uploads(db, options, token, upload_after)
@@ -124,6 +126,9 @@ def watch(db, options, identity_key, token):
                                check=True, timeout=40)
             except (OSError, subprocess.SubprocessError) as exc:
                 print(f"Display snapshot will retry ({type(exc).__name__})", flush=True)
+        if options.publish_analysis and time.monotonic() >= analysis_after:
+            analysis_after = time.monotonic() + 60
+            publish_pending_analysis(db, options.analytics_dir, options.upload_url, token)
         time.sleep(options.poll)
 
 
@@ -134,6 +139,7 @@ if __name__ == "__main__":
     parser.add_argument("--identity-key", type=Path, default=ROOT / ".data" / "player-id.key")
     parser.add_argument("--preview", type=Path)
     parser.add_argument("--analytics-dir", type=Path, help="Store full offline replay reports here")
+    parser.add_argument("--publish-analysis", action="store_true", help="Publish match analysis from the local reports")
     parser.add_argument("--snapshot-script", type=Path, help="Publish locally computed website statistics")
     parser.add_argument("--node", default="node", help="Node executable for the display snapshot publisher")
     parser.add_argument("--upload-url", help="The website's /api/matches endpoint")
@@ -141,6 +147,8 @@ if __name__ == "__main__":
     parser.add_argument("--settle", type=float, default=8)
     parser.add_argument("--run-for", type=float, help="Stop after this many seconds of watching")
     options = parser.parse_args()
+    if options.publish_analysis and (not options.analytics_dir or not options.upload_url):
+        parser.error("--publish-analysis requires --analytics-dir and --upload-url")
     if options.snapshot_script and (not options.upload_url or not options.snapshot_script.is_file()):
         parser.error("--snapshot-script requires an existing script and --upload-url")
     logging.getLogger("gem").setLevel(logging.ERROR)

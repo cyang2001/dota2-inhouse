@@ -176,6 +176,21 @@
     .match-layout .detail table { min-width: 300px; }
     .match-layout .team-detail-head { gap: 8px; justify-content: flex-start; }
     .match-layout .detail-winner { margin-left: auto; color: var(--gold); font-weight: 700; }
+    .ward-lens { position: fixed; z-index: 20; width: min(220px, 45vw); height: auto; aspect-ratio: 1;
+      border: 2px solid var(--gold); border-radius: 10px; box-shadow: 0 9px 26px #000a; pointer-events: none; }
+    .match-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 16px 0 0; }
+    .match-tabs button, .analysis-filter select { padding: 7px 10px; color: var(--text); background: var(--panel);
+      border: 1px solid var(--line); border-radius: 5px; font: inherit; }
+    .match-tabs button { cursor: pointer; }
+    .match-tabs button[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
+    .match-analysis { margin-top: 14px; padding: 14px; }
+    .match-analysis h2, .match-analysis h3 { margin: 0 0 10px; }
+    .match-analysis .table-scroll { margin: 8px 0 18px; max-height: 420px; overflow: auto; }
+    .match-analysis th { position: sticky; top: 0; background: var(--panel); z-index: 1; }
+    .analysis-filter { display: inline-flex; align-items: center; gap: 8px; margin: 0 12px 12px 0; }
+    .analysis-chart { display: block; width: 100%; max-width: 850px; height: auto; }
+    .analysis-route { max-width: 540px; }
+    .match-analysis li { margin-block: 5px; }
     #match-wards .ward-controls { gap: 7px 9px; font-size: 13px; }
     #match-wards .ward-controls select, #match-wards .ward-controls button { min-height: 32px; padding: 4px 6px; }
     @media (max-width: 760px) {
@@ -254,6 +269,7 @@
         <ul class="replay-list" id="replay-list"></ul>
       </section>
     </div>
+    <nav class="match-tabs" id="match-tabs" aria-label="本局分析" hidden></nav>
     <div class="match-layout" id="match-layout" hidden>
       <section class="details-grid" id="match" aria-label="两队赛后战绩"></section>
       <section class="panel" aria-labelledby="match-wards-heading">
@@ -262,6 +278,7 @@
       </section>
       <section class="panel draft-panel" id="draft" aria-label="英雄禁选" hidden></section>
     </div>
+    <section class="panel match-analysis" id="match-analysis" aria-live="polite" hidden></section>
     <section id="analytics" aria-label="全局数据分析" hidden>
       <div class="analytics-summary" id="analytics-summary"></div>
       <section class="panel map-panel" aria-labelledby="league-wards-heading">

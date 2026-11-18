@@ -38,3 +38,8 @@ END;
 CREATE TRIGGER IF NOT EXISTS display_spatial_delete AFTER DELETE ON match_spatial BEGIN
   UPDATE display_state SET revision = revision + 1 WHERE id = 1;
 END;
+
+CREATE TABLE IF NOT EXISTS match_analysis (
+  match_id TEXT PRIMARY KEY REFERENCES matches(match_id) ON DELETE CASCADE,
+  payload TEXT NOT NULL CHECK (json_valid(payload))
+);
