@@ -170,6 +170,18 @@
     .ward-meta a { margin-left: auto; text-decoration: underline; }
     .ward-observer { color: #2ae5df; }
     .ward-sentry { color: #ff777a; }
+    .match-layout { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 8fr); gap: 16px; margin-top: 16px; align-items: start; }
+    .match-layout .details-grid { grid-column: 1 / -1; margin: 0; }
+    .match-layout .draft-panel { margin: 0; }
+    .match-layout .detail table { min-width: 300px; }
+    .match-layout .team-detail-head { gap: 8px; justify-content: flex-start; }
+    .match-layout .detail-winner { margin-left: auto; color: var(--gold); font-weight: 700; }
+    #match-wards .ward-controls { gap: 7px 9px; font-size: 13px; }
+    #match-wards .ward-controls select, #match-wards .ward-controls button { min-height: 32px; padding: 4px 6px; }
+    @media (max-width: 760px) {
+      .match-layout { grid-template-columns: minmax(0, 1fr); }
+      .match-layout .details-grid { grid-template-columns: minmax(0, 1fr); }
+    }
     .profile-back { margin: 0 0 12px; display: inline-block; }
     .profile-table { min-width: 400px; }
     @media (max-width: 920px) {
@@ -242,8 +254,14 @@
         <ul class="replay-list" id="replay-list"></ul>
       </section>
     </div>
-    <section class="details-grid" id="match" aria-label="两队赛后战绩" hidden></section>
-    <section class="panel draft-panel" id="draft" aria-label="英雄禁选" hidden></section>
+    <div class="match-layout" id="match-layout" hidden>
+      <section class="details-grid" id="match" aria-label="两队赛后战绩"></section>
+      <section class="panel" aria-labelledby="match-wards-heading">
+        <div class="panel-head"><h2 id="match-wards-heading">本局眼位</h2></div>
+        <div class="ward-map" id="match-wards"></div>
+      </section>
+      <section class="panel draft-panel" id="draft" aria-label="英雄禁选" hidden></section>
+    </div>
     <section id="analytics" aria-label="全局数据分析" hidden>
       <div class="analytics-summary" id="analytics-summary"></div>
       <section class="panel map-panel" aria-labelledby="league-wards-heading">

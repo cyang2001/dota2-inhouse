@@ -77,6 +77,8 @@ $env:DOTA_UPLOAD_TOKEN = 'local-upload-token'
 
 已有数据库部署热图前，先对目标 D1 执行 `migrations/0002_match_spatial.sql`。迁移可重复执行。新装使用 `schema.sql` 即可。
 
+升级已有数据库时也执行 `migrations/0003_display_snapshot.sql`。Windows 导入器加 `--snapshot-script server/scripts/publish-display-snapshot.js` 后每分钟检查一次已验证数据的版本，由本机 Node 生成并发布网页统计快照。有需要时用 `--node` 指定 Node 路径。
+
 从最新 `main` 开 `feature/<功能名>` 分支，在该分支验证并开 PR。D1 结构变化先用样例和现有数据副本验证迁移。提交前运行 `git status --short` 检查改动。公开仓库只保存源码、文档和合成示例。项目本地数据、录像、SQLite、密钥和生产配置由 `.gitignore` 排除。
 
 架构复核、录像 BP 实测及 Discord 方案见 [`ARCHITECTURE.md`](ARCHITECTURE.md)。

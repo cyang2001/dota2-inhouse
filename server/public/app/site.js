@@ -1,6 +1,7 @@
 import { element, heroes, heroLabel, matches, node, playerName, portrait } from './dom.js';
 import { loadAnalytics } from './analytics.js';
 import { showProfile } from './profile.js';
+import { mountWardMap } from './ward-map.js';
 
 const categories = { inhouse: '私人房间', ranked: '天梯', weekend: '周末联赛', casual: '普通匹配', unknown: '类型待确认' };
 const inhouseMatches = matches.filter((match) => match.category === 'inhouse' && match.winner);
@@ -110,10 +111,17 @@ function renderDetails() {
       playerCell.append(inside);
       for (const stat of [player.kills, player.deaths, player.assists]) tr.append(node('td', 'stat', stat ?? '—'));
     }
-    card.append(heading, table);
+    heading.append(node('span', current.winner === side ? 'detail-winner' : 'panel-meta',
+      current.winner === side ? '胜利' : ''));
+    const scroll = node('div', 'table-scroll');
+    scroll.append(table);
+    card.append(heading, scroll);
     return card;
   });
   element('match').replaceChildren(...cards);
+  const wards = node('div');
+  element('match-wards').replaceChildren(wards);
+  mountWardMap(wards, null, current.matchId);
 }
 
 function route() {
@@ -126,7 +134,7 @@ function route() {
   element('analytics').hidden = !analytical;
   element('profile').hidden = !profile;
   element('overview').hidden = details || analytical || profile;
-  element('match').hidden = !details;
+  element('match-layout').hidden = !details;
   element('heading').textContent = profile ? '玩家主页' : analytical ? '数据分析' : details ? '比赛详情' : '内战战绩';
   element('subtitle').textContent = analytical || profile ? '全部已验证的私人房间 5v5' : details ? `${matchDate(current)} · 5 对 5` : `已导入 ${matches.length} 局录像 · ${inhouseMatches.length} 局计入内战胜率榜`;
   element('match-code').textContent = !analytical && !profile && current ? `比赛 ID  ${current.matchId}` : '';

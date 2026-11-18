@@ -18,7 +18,7 @@ export async function insertSpatialMatch(db, match, spatial) {
     ON CONFLICT (match_id, version) DO NOTHING`).bind(spatial.version, JSON.stringify(spatial), ...roster);
   const confirm = db.prepare(`SELECT EXISTS(${matchingRoster}) AS accepted`).bind(...roster);
   const [matchResult, , confirmation] = await db.batch([prepareMatchInsert(db, match), store, confirm]);
-  return { inserted: matchResult.meta.changes === 1, spatialAccepted: Boolean(confirmation.results[0].accepted) };
+  return { inserted: matchResult.results.length === 1, spatialAccepted: Boolean(confirmation.results[0].accepted) };
 }
 
 export async function listSpatial(db, playerId) {
@@ -33,9 +33,11 @@ export async function listSpatial(db, playerId) {
   return results.map(({ payload }) => JSON.parse(payload));
 }
 
-export async function listWardEvents(db) {
+export async function listWardEvents(db, matchId) {
+  const filter = matchId ? ' AND verified.match_id = ?' : '';
   const { results } = await db.prepare(`SELECT verified.match_id, json_extract(spatial.payload, '$.wardEvents') AS events
     FROM (${verifiedMatches}) AS verified JOIN match_spatial AS spatial USING (match_id)
-    WHERE spatial.version = ? ORDER BY verified.played_date DESC, verified.match_id DESC`).bind(practiceLobby, wardEventVersion).all();
+    WHERE spatial.version = ?${filter} ORDER BY verified.played_date DESC, verified.match_id DESC`)
+    .bind(...(matchId ? [practiceLobby, wardEventVersion, matchId] : [practiceLobby, wardEventVersion])).all();
   return results.map(({ match_id, events }) => ({ matchId: match_id, events: JSON.parse(events) }));
 }

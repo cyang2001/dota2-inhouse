@@ -10,11 +10,15 @@ const matchesById = new Map(matches.map((match) => [match.matchId, match]));
 const playerNames = new Map(matches.map((match) => [match.matchId, new Map(match.players.map((p) => [p.id, p.name]))]));
 let reading;
 
-function wardData() {
-  reading ??= fetch('/api/analytics/ward-events').then(async (response) => {
-    if (!response.ok) throw new Error('Ward events unavailable');
-    return response.json();
-  }).catch((error) => {
+async function fetchWards(path) {
+  const response = await fetch(path);
+  if (!response.ok) throw new Error('Ward events unavailable');
+  return response.json();
+}
+
+function wardData(matchId) {
+  if (matchId) return fetchWards(`/api/matches/${matchId}/wards`);
+  reading ??= fetchWards('/api/analytics/ward-events').catch((error) => {
     reading = undefined;
     throw error;
   });
@@ -175,17 +179,22 @@ function createMap(root, data, playerId) {
   render();
 }
 
-export async function mountWardMap(root, playerId) {
+export async function mountWardMap(root, playerId, matchId) {
   if (root.dataset.wardMap) return;
   root.dataset.wardMap = 'loading';
   root.replaceChildren(node('p', 'empty', '载入眼位数据…'));
   try {
-    createMap(root, await wardData(), playerId);
+    const data = await wardData(matchId);
+    if (matchId && data.matches.length === 0) {
+      root.replaceChildren(node('p', 'empty', '这局暂时没有眼位记录。'));
+    } else {
+      createMap(root, data, playerId);
+    }
     root.dataset.wardMap = 'ready';
   } catch {
     delete root.dataset.wardMap;
     const retry = node('button', 'ward-retry', '重新加载');
-    retry.addEventListener('click', () => mountWardMap(root, playerId));
+    retry.addEventListener('click', () => mountWardMap(root, playerId, matchId));
     root.replaceChildren(node('p', 'empty', '眼位数据加载失败。'), retry);
   }
 }

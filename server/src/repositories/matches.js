@@ -7,13 +7,13 @@ export const verifiedMatches = `SELECT match_id, played_date, summary FROM match
     AND json_extract(summary, '$.replay.direPlayers') = 5`;
 
 export function prepareMatchInsert(db, match) {
-  return db.prepare('INSERT OR IGNORE INTO matches (match_id, played_date, summary) VALUES (?, ?, ?)')
+  return db.prepare('INSERT OR IGNORE INTO matches (match_id, played_date, summary) VALUES (?, ?, ?) RETURNING match_id')
     .bind(match.matchId, match.playedDate ?? match.savedDate, JSON.stringify(match));
 }
 
 export async function insertMatch(db, match) {
-  const result = await prepareMatchInsert(db, match).run();
-  return result.meta.changes === 1;
+  const result = await prepareMatchInsert(db, match).all();
+  return result.results.length === 1;
 }
 
 export async function listMatches(db, playerId) {
