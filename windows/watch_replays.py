@@ -5,6 +5,7 @@ import os
 import secrets
 from pathlib import Path
 import sqlite3
+import subprocess
 import time
 from urllib.parse import urlsplit
 
@@ -82,6 +83,7 @@ def watch(db, options, identity_key, token):
     deadline = time.monotonic() + options.run_for if options.run_for else float("inf")
     pending_preview = options.preview is not None
     upload_after = 0
+    snapshot_after = 0
     print(f"Watching {options.replays}", flush=True)
     while time.monotonic() < deadline:
         upload_after = retry_uploads(db, options, token, upload_after)
@@ -115,6 +117,13 @@ def watch(db, options, identity_key, token):
                 pending_preview = False
             except OSError as exc:
                 print(f"Preview update will retry ({exc})", flush=True)
+        if options.snapshot_script and time.monotonic() >= snapshot_after:
+            snapshot_after = time.monotonic() + 60
+            try:
+                subprocess.run([options.node, str(options.snapshot_script), options.upload_url],
+                               check=True, timeout=40)
+            except (OSError, subprocess.SubprocessError) as exc:
+                print(f"Display snapshot will retry ({type(exc).__name__})", flush=True)
         time.sleep(options.poll)
 
 
@@ -125,11 +134,15 @@ if __name__ == "__main__":
     parser.add_argument("--identity-key", type=Path, default=ROOT / ".data" / "player-id.key")
     parser.add_argument("--preview", type=Path)
     parser.add_argument("--analytics-dir", type=Path, help="Store full offline replay reports here")
+    parser.add_argument("--snapshot-script", type=Path, help="Publish locally computed website statistics")
+    parser.add_argument("--node", default="node", help="Node executable for the display snapshot publisher")
     parser.add_argument("--upload-url", help="The website's /api/matches endpoint")
     parser.add_argument("--poll", type=float, default=2)
     parser.add_argument("--settle", type=float, default=8)
     parser.add_argument("--run-for", type=float, help="Stop after this many seconds of watching")
     options = parser.parse_args()
+    if options.snapshot_script and (not options.upload_url or not options.snapshot_script.is_file()):
+        parser.error("--snapshot-script requires an existing script and --upload-url")
     logging.getLogger("gem").setLevel(logging.ERROR)
     if not options.replays.is_dir() or options.poll <= 0 or options.settle <= 0 or (options.run_for is not None and options.run_for <= 0):
         parser.error("Use an existing replay directory and positive timings")

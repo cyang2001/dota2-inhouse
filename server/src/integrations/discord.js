@@ -1,4 +1,5 @@
 import { listMatches } from '../repositories/matches.js';
+import { readDisplay } from '../repositories/display-snapshot.js';
 import { playerStandings } from '../services/analytics.js';
 import { json, readBytes } from '../http/request.js';
 
@@ -67,7 +68,7 @@ export async function discordInteraction(request, env) {
     return autocomplete ? json(200, choices([], '')) : reply('这个命令只在内战测试频道使用。');
   }
   if (interaction.data?.name !== 'winrate' || (!autocomplete && interaction.type !== 2)) return reply('未识别的命令。');
-  const standings = playerStandings(await listMatches(env.DB));
+  const standings = await readDisplay(env.DB, 'standings') ?? playerStandings(await listMatches(env.DB));
   const options = interaction.data.options ?? [];
   const player = options.find((option) => option.name === 'player')?.value;
   if (autocomplete) return json(200, choices(standings, typeof player === 'string' ? player : ''));
