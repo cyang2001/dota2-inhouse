@@ -4,6 +4,7 @@ import { showProfile } from './profile.js';
 import { mountWardMap } from './ward-map.js';
 import { mountMatchAnalysis } from './match-analysis.js';
 import { renderMatchNavigation } from './match-navigation.js';
+import { durationLabel, winnerLabel } from './match-directory.js';
 
 const categories = { inhouse: '私人房间', ranked: '天梯', weekend: '周末联赛', casual: '普通匹配', unknown: '类型待确认' };
 const inhouseMatches = matches.filter((match) => match.category === 'inhouse' && match.winner);
@@ -26,31 +27,49 @@ function scoreSide(side) {
   return panel;
 }
 
-function renderScore() {
+function renderScore({ compact = false, latest = false } = {}) {
   const center = node('div', 'score-center');
   const score = node('div', 'score');
   score.append(node('span', '', current.radiantScore), node('span', '', '–'), node('span', '', current.direScore));
   score.setAttribute('aria-label', `天辉 ${current.radiantScore} 比 ${current.direScore} 夜魇`);
-  const minutes = Math.floor(current.duration / 60);
-  const seconds = String(current.duration % 60).padStart(2, '0');
   const result = current.winner ? `${sides[current.winner][0]}获胜` : '胜方待确认';
-  center.append(node('span', 'result-label', result), score, node('span', 'score-meta', `${categoryLabel(current)} · ${minutes}:${seconds}`));
-  element('scoreboard').replaceChildren(scoreSide('radiant'), center, scoreSide('dire'));
+  if (latest) center.append(node('span', 'score-meta', `最新一局 · ${matchDate(current)}`));
+  center.append(node('span', 'result-label', result), score, node('span', 'score-meta', `${categoryLabel(current)} · ${durationLabel(current.duration)}`));
+  if (latest) {
+    const link = node('a', 'primary-action', '查看本局');
+    link.href = `#match/${current.matchId}`;
+    center.append(link);
+  }
+  const scoreboard = element('scoreboard');
+  scoreboard.classList.toggle('is-compact', compact);
+  scoreboard.classList.toggle('is-latest', latest);
+  scoreboard.replaceChildren(scoreSide('radiant'), center, scoreSide('dire'));
 }
 
-function renderRanking() {
-  const standings = JSON.parse(element('standings-data').textContent);
-  element('rank-count').textContent = `${standings.length} 位玩家`;
-  element('rank-table').hidden = !standings.length;
-  element('rank-empty').hidden = Boolean(standings.length);
+const standings = JSON.parse(element('standings-data').textContent);
+element('header-count').textContent = `已收录 ${matches.length} 局`;
+const rankingPanel = element('ranking-panel');
+let fullRanking;
+function renderRanking(full) {
   let previous;
   let rank = 0;
-  const rows = standings.map((row, index) => {
+  const ranked = standings.map((row, index) => {
     if (!previous || row.winRate !== previous.winRate || row.wins !== previous.wins) rank = index + 1;
     previous = row;
+    return { ...row, rank };
+  });
+  const query = element('player-query').value.trim().toLocaleLowerCase();
+  const minimum = Number(element('player-minimum').value);
+  const shown = full ? ranked.filter((row) => row.games >= minimum && row.name.toLocaleLowerCase().includes(query)) : ranked.slice(0, 6);
+  if (full && element('player-sort').value === 'games') shown.sort((a,b) => b.games - a.games || a.rank - b.rank);
+  element('rank-count').textContent = `${full ? shown.length : standings.length} 位玩家`;
+  element('rank-table').hidden = !shown.length;
+  element('rank-empty').hidden = Boolean(shown.length);
+  element('rank-empty').textContent = standings.length ? '没有符合条件的玩家。' : '暂无已确认的私人房间战绩。';
+  element('ranking').replaceChildren(...shown.map((row) => {
     const tr = node('tr');
-    const rankCell = node('td', 'rank', rank);
-    rankCell.dataset.first = String(rank === 1);
+    const rankCell = node('td', 'rank', row.rank);
+    rankCell.dataset.first = String(row.rank === 1);
     const percent = new Intl.NumberFormat('zh-CN', { style: 'percent', maximumFractionDigits: 1 }).format(row.winRate);
     const rateCell = node('td', 'rate');
     const rate = node('div', 'rate-value');
@@ -60,25 +79,35 @@ function renderRanking() {
     fill.style.width = percent;
     meter.append(fill);
     rate.append(node('strong', '', percent), meter);
+    if (row.games < 5) rate.append(node('small', 'panel-meta', '样本较少'));
     rateCell.append(rate);
     const nameCell = node('td');
     nameCell.append(playerName(row.name, row.id));
-    tr.append(rankCell, nameCell, node('td', 'stat', row.games), node('td', 'stat wins', row.wins), node('td', 'stat losses', row.losses), rateCell);
+    tr.append(rankCell, nameCell, node('td', 'stat', row.games), node('td', 'stat full-stat wins', row.wins), node('td', 'stat full-stat losses', row.losses), rateCell);
     return tr;
-  });
-  element('ranking').replaceChildren(...rows);
+  }));
+}
+
+function showRanking(full) {
+  if (fullRanking === full) return;
+  fullRanking = full;
+  element('player-filters').hidden = !full;
+  element('rank-all').hidden = full;
+  element('rank-position-label').textContent = full ? '全榜排名' : '排名';
+  (full ? element('players-page') : element('overview-page')).prepend(rankingPanel);
+  renderRanking(full);
 }
 
 function renderReplayList() {
-  const rows = matches.map((match) => {
+  const rows = matches.slice(0, 5).map((match) => {
     const row = node('li');
     const link = node('a', 'replay-link');
     link.href = `#match/${match.matchId}`;
     const identity = node('span');
-    identity.append(node('span', 'date', matchDate(match)), node('span', 'replay-id', match.matchId));
+    identity.append(node('span', 'date', matchDate(match)), node('span', 'replay-id', `${durationLabel(match.duration)} · ${match.matchId}`));
     const arrow = node('span', 'row-arrow', '→');
     arrow.setAttribute('aria-hidden', 'true');
-    link.append(node('span', `category ${match.category}`, categoryLabel(match)), identity, node('span', 'row-score', `${match.radiantScore}–${match.direScore}`), arrow);
+    link.append(node('span', `category result-${match.winner}`, winnerLabel(match)), identity, node('span', 'row-score', `${match.radiantScore ?? '—'}–${match.direScore ?? '—'}`), arrow);
     row.append(link);
     return row;
   });
@@ -107,7 +136,9 @@ function renderDetails() {
       const tr = body.insertRow();
       const playerCell = tr.insertCell();
       const identity = node('div');
-      identity.append(playerName(player.name, player.id), node('div', 'hero', heroLabel(player)));
+      const link = playerName(player.name, player.id);
+      link.href += `?fromMatch=${current.matchId}`;
+      identity.append(link, node('div', 'hero', heroLabel(player)));
       const inside = node('div', 'player-cell');
       inside.append(portrait(player), identity);
       playerCell.append(inside);
@@ -121,41 +152,68 @@ function renderDetails() {
     return card;
   });
   element('match').replaceChildren(...cards);
-  const wards = node('div');
-  element('match-wards').replaceChildren(wards);
-  mountWardMap(wards, null, current.matchId);
+  const wardPanel = element('match-wards');
+  if (wardPanel.dataset.matchId !== current.matchId) {
+    wardPanel.dataset.matchId = current.matchId;
+    const wards = node('div');
+    wardPanel.replaceChildren(wards);
+    mountWardMap(wards, null, current.matchId);
+  }
 }
 
 function route() {
-  const selection = location.hash.match(/^#match(?:\/(\d+))?(?:\?(.*))?$/);
-  current = matches.find((match) => match.matchId === selection?.[1]) ?? featured;
+  const [path, query] = location.hash.split('?');
+  const params = new URLSearchParams(query);
+  const [section, id, extra] = path.split('/');
+  const selection = section === '#match' && !extra && (id === undefined || /^[0-9]+$/.test(id));
+  current = selection && id ? matches.find((m) => m.matchId === id) : featured;
   const details = Boolean(selection && current);
-  const analytical = location.hash === '#analytics';
-  const playerId = location.hash.match(/^#player\/([a-f0-9]{32})$/)?.[1];
-  const profile = Boolean(playerId);
-  element('analytics').hidden = !analytical;
-  element('profile').hidden = !profile;
-  element('overview').hidden = details || analytical || profile;
+  const analytical = path === '#analytics';
+  const playerId = section === '#player' && !extra && /^[a-f0-9]{32}$/.test(id ?? '') ? id : null;
+  const matchList = path === '#matches';
+  const playerList = path === '#players';
+  const overview = !selection && !analytical && !playerId && !matchList && !playerList;
+  element('analytics-page').hidden = !analytical;
+  element('profile').hidden = !playerId;
+  element('overview-page').hidden = !overview;
+  element('matches-page').hidden = !matchList;
+  element('players-page').hidden = !playerList;
+  if (overview || playerList) showRanking(playerList);
+  element('match-not-found').hidden = !selection || details;
   element('match-layout').hidden = !details;
-  renderMatchNavigation(details ? current : null, selection?.[2]);
-  mountMatchAnalysis(details ? current : null);
-  element('heading').textContent = profile ? '玩家主页' : analytical ? '数据分析' : details ? '比赛详情' : '内战战绩';
-  element('subtitle').textContent = analytical || profile ? '全部已验证的私人房间 5v5' : details ? `${matchDate(current)} · 5 对 5` : `已导入 ${matches.length} 局录像 · ${inhouseMatches.length} 局计入内战胜率榜`;
-  element('match-code').textContent = !analytical && !profile && current ? `比赛 ID  ${current.matchId}` : '';
-  element('nav-match').hidden = !current;
-  if (current) element('nav-match').href = `#match/${current.matchId}`;
-  element('nav-overview').removeAttribute('aria-current');
-  element('nav-match').removeAttribute('aria-current');
-  element('nav-analytics').removeAttribute('aria-current');
-  if (!profile) element(analytical ? 'nav-analytics' : details ? 'nav-match' : 'nav-overview').setAttribute('aria-current', 'page');
-  element('scoreboard').hidden = !current || analytical || profile;
-  if (!element('scoreboard').hidden) renderScore();
-  showProfile(playerId);
-  if (analytical) loadAnalytics();
+  renderMatchNavigation(details ? current : null, query);
+  element('heading').textContent = playerId ? '玩家主页' : analytical ? '数据分析' : selection ? '比赛详情'
+    : matchList ? '比赛' : playerList ? '玩家' : '内战战绩';
+  element('subtitle').textContent = details ? `${matchDate(current)} · 5 对 5` : overview
+    ? `${inhouseMatches.length} 局已验证内战 · ${standings.length} 位玩家` : '';
+  element('match-code').textContent = current && (details || overview) ? `比赛 ID  ${current.matchId}` : '';
+  for (const key of ['overview', 'match', 'players', 'analytics']) element(`nav-${key}`).removeAttribute('aria-current');
+  element(`nav-${overview ? 'overview' : analytical ? 'analytics' : playerId || playerList ? 'players' : 'match'}`)
+    .setAttribute('aria-current', 'page');
+  const back = element('match-back');
+  back.hidden = !selection;
+  const fromPlayer = params.get('player');
+  const returnPlayer = params.get('returnPlayer');
+  if (/^[a-f0-9]{32}$/.test(fromPlayer ?? '')) {
+    back.href = `#player/${fromPlayer}?${new URLSearchParams({ view: 'heroes', hero: params.get('hero') ?? '' })}`;
+    back.textContent = '← 返回英雄战绩';
+  } else if (/^[a-f0-9]{32}$/.test(returnPlayer ?? '')) {
+    back.href = `#player/${returnPlayer}`;
+    back.textContent = '← 返回玩家战绩';
+  } else {
+    back.href = '#matches';
+    back.textContent = '← 返回比赛';
+  }
+  element('scoreboard').hidden = !current || (!details && !overview);
+  element('home-empty').hidden = !overview || Boolean(current);
+  if (!element('scoreboard').hidden) renderScore({ compact: details, latest: overview });
+  showProfile(playerId, params);
+  if (analytical) loadAnalytics(params.get('view'));
   if (details) renderDetails();
   const draft = element('draft');
   draft.hidden = !details || !current?.draft?.length;
   if (!draft.hidden) renderDraft(draft, current.draft);
+  mountMatchAnalysis(details ? current : null, params);
 }
 
 function renderDraft(container, events) {
@@ -187,7 +245,33 @@ function renderDraft(container, events) {
   container.replaceChildren(node('h2', '', '英雄禁选'), teams);
 }
 
-renderRanking();
+element('player-filters').addEventListener('submit', (event) => event.preventDefault());
+element('player-filters').addEventListener('input', () => renderRanking(true));
 renderReplayList();
+const pagePositions = new Map();
+let previousHash = location.hash;
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+addEventListener('click', (event) => {
+  const link = event.target.closest?.('a');
+  if (link?.closest('#matches-page, #players-page')) {
+    pagePositions.set(location.hash, { scroll: window.scrollY, href: link.getAttribute('href') });
+  }
+});
 route();
-addEventListener('hashchange', () => { route(); window.scrollTo(0, 0); });
+addEventListener('hashchange', () => {
+  const samePage = previousHash.split('?')[0] === location.hash.split('?')[0];
+  const fromTabs = document.activeElement?.closest('#match-tabs, #profile-views, nav[aria-label="数据分析视图"]');
+  previousHash = location.hash;
+  route();
+  if (samePage) {
+    const selected = fromTabs?.querySelector('.match-subviews [aria-current="page"]')
+      ?? fromTabs?.querySelector('[aria-current="page"]');
+    selected?.focus({ preventScroll: true });
+    return;
+  }
+  const position = pagePositions.get(location.hash);
+  const link = position && [...document.querySelectorAll('a[href]')].find((a) =>
+    !a.closest('[hidden]') && a.getAttribute('href') === position.href);
+  (link || element('heading')).focus({ preventScroll: true });
+  window.scrollTo(0, position?.scroll ?? 0);
+});

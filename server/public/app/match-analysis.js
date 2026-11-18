@@ -71,6 +71,7 @@ function chart(root, points, label, colors = ['#9cdba7', '#70b8fc']) {
   canvas.height = 290;
   canvas.setAttribute('role', 'img');
   canvas.setAttribute('aria-label', label);
+  canvas.tabIndex = 0;
   const ctx = canvas.getContext('2d');
   const values = points.flatMap(([, ...row]) => row.filter(Number.isFinite));
   const low = Math.min(0, ...values);
@@ -91,6 +92,11 @@ function chart(root, points, label, colors = ['#9cdba7', '#70b8fc']) {
     ctx.fillText(Math.round(value).toLocaleString('zh-CN'), 4, y(value) + 4);
     ctx.fillText(clock(end * i / 4), Math.min(right - 31, x(end * i / 4)), 282);
   }
+  ctx.strokeStyle = '#8292a8';
+  ctx.beginPath();
+  ctx.moveTo(left, y(0));
+  ctx.lineTo(right, y(0));
+  ctx.stroke();
   const columns = points[0].length - 1;
   for (let i = 1; i <= columns; i++) {
     ctx.strokeStyle = colors[i - 1];
@@ -106,13 +112,26 @@ function chart(root, points, label, colors = ['#9cdba7', '#70b8fc']) {
     ctx.stroke();
   }
   const valueText = node('p', 'panel-meta', label);
+  const instructions = node('p', 'panel-meta', '键盘聚焦图表后，用左右方向键查看采样值。');
+  let currentPoint = 0;
+  function readPoint(index) {
+    currentPoint = index;
+    const [time, ...row] = points[index];
+    valueText.textContent = `${label} · ${clock(time)} · ${row.map(value => value?.toLocaleString('zh-CN') ?? '—').join(' / ')}`;
+  }
   canvas.addEventListener('pointermove', event => {
     const bounds = canvas.getBoundingClientRect();
     const second = ((event.clientX - bounds.left) / bounds.width * canvas.width - left) / (right - left) * end;
-    const [time, ...row] = points.reduce((a, b) => Math.abs(b[0] - second) < Math.abs(a[0] - second) ? b : a);
-    valueText.textContent = `${clock(time)} · ${row.map(value => value?.toLocaleString('zh-CN') ?? '—').join(' / ')}`;
+    readPoint(points.reduce((index, point, i) => Math.abs(point[0] - second) < Math.abs(points[index][0] - second) ? i : index, 0));
   });
-  root.append(canvas, valueText);
+  canvas.addEventListener('focus', () => { valueText.setAttribute('aria-live', 'polite'); readPoint(currentPoint); });
+  canvas.addEventListener('blur', () => valueText.removeAttribute('aria-live'));
+  canvas.addEventListener('keydown', (event) => {
+    if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+    event.preventDefault();
+    readPoint(Math.max(0, Math.min(points.length - 1, currentPoint + (event.key === 'ArrowRight' ? 1 : -1))));
+  });
+  root.append(canvas, valueText, instructions);
 }
 
 function positionMap(root, samples) {
@@ -181,10 +200,16 @@ function render(root, key, match, data) {
     choosePlayer((body, row) => chart(body, row.economy.timeline.filter(p => p.seconds >= 0)
       .map(p => [p.seconds, p.last_hits, p.denies]), '正补（绿）／反补（蓝）'));
   } else if (key === 'graphs') {
-    chart(root, data.advantage.filter(p => p.seconds >= 0).map(p => [p.seconds, p.radiant_gold, p.radiant_xp]),
-      '天辉经济差（绿）／经验差（蓝） · 正值代表天辉领先');
-    choosePlayer((body, row) => chart(body, row.economy.timeline.filter(p => p.seconds >= 0)
-      .map(p => [p.seconds, p.net_worth, p.earned_xp ?? p.xp]), '个人净资产（绿）／累计经验（蓝）'));
+    const samples = data.advantage.filter(p => Number.isFinite(p.seconds) && p.seconds >= 0);
+    root.append(node('h3', '', '团队经济差'));
+    chart(root, samples.map(p => [p.seconds, p.radiant_gold]), '金币 · 正值代表天辉领先', ['#9cdba7']);
+    root.append(node('h3', '', '团队经验差'));
+    chart(root, samples.map(p => [p.seconds, p.radiant_xp]), '经验 · 正值代表天辉领先', ['#70b8fc']);
+    choosePlayer((body, row) => {
+      const timeline = row.economy.timeline.filter(p => Number.isFinite(p.seconds) && p.seconds >= 0);
+      chart(body, timeline.map(p => [p.seconds, p.net_worth]), '个人净资产 · 金币');
+      chart(body, timeline.map(p => [p.seconds, p.earned_xp ?? p.xp]), '个人累计经验');
+    });
   } else if (key === 'combat') {
     choosePlayer((body, row) => {
       const { damage_by_target: dealt, healing_by_target: healed } = row.combat;
@@ -213,9 +238,24 @@ function render(root, key, match, data) {
       data.vision.map(e => [clock(e.placed_seconds), e.kind === 'observer' ? '假眼' : '真眼', sideName[e.team],
         player(e.placer_id), clock(e.killed_seconds), player(e.killed_by_id)]));
   } else if (key === 'fights') {
-    table(root, ['开始', '结束', '阵亡数', '胜方', '参战者'],
-      data.fights.map(fight => [clock(fight.start_seconds), clock(fight.end_seconds), fight.deaths, sideName[fight.winner],
-        fight.players.map(id => people.get(id)?.name).filter(Boolean).join('、')]));
+    if (!data.fights.length) root.append(node('p', 'panel-meta', '暂无符合条件的团战记录。'));
+    for (const fight of [...data.fights].sort((a, b) => (a.start_seconds ?? Infinity) - (b.start_seconds ?? Infinity))) {
+      const details = node('details', 'fight-participants');
+      details.append(node('summary', '', `${clock(fight.start_seconds)}–${clock(fight.end_seconds)} · ${fight.deaths} 人阵亡 · ${sideName[fight.winner] ?? '胜负未确认'} · ${fight.players.length} 位参战者`));
+      for (const side of ['radiant', 'dire']) {
+        const team = node('div');
+        team.append(node('strong', side, sideName[side]));
+        for (const id of fight.players) {
+          if (people.get(id)?.team !== side) continue;
+          const link = player(id);
+          link.href += `?fromMatch=${match.matchId}&fromView=fights`;
+          link.append(document.createTextNode(` · ${heroLabel(people.get(id))}`));
+          team.append(link);
+        }
+        details.append(team);
+      }
+      root.append(details);
+    }
   } else if (key === 'positions') {
     choosePlayer((body, row) => positionMap(body, row.positions));
   } else if (key === 'timeline') {
@@ -226,60 +266,93 @@ function render(root, key, match, data) {
     });
     events.push(...data.vision.flatMap(e => [[e.placed_seconds, e.placer_id, '插眼', e.kind === 'observer' ? '假眼' : '真眼'],
       ...(e.killed_seconds == null ? [] : [[e.killed_seconds, e.killed_by_id, '排眼', e.kind === 'observer' ? '假眼' : '真眼']])]));
-    table(root, ['时间', '玩家', '事件', '详情'], events.sort((a, b) => (a[0] ?? Infinity) - (b[0] ?? Infinity))
-      .map(([seconds, id, category, value]) => [clock(seconds), player(id), category, value]));
+    const sorted = events.sort((a, b) => (a[0] ?? Infinity) - (b[0] ?? Infinity));
+    select(root, '事件类型', [['', '全部'], ...['击杀', '符文', '插眼', '排眼'].map(type => [type, type])], (filtered, type) => {
+      select(filtered, '事件玩家', [['', '全部'], ...roster.map(person => [person.id, person.name])], (body, playerId) => {
+        table(body, ['时间', '玩家', '事件', '详情'], sorted.filter(([, id, category]) =>
+          (!type || type === category) && (!playerId || playerId === id))
+          .map(([seconds, id, category, value]) => [clock(seconds), player(id), category, value]));
+      });
+    });
   }
 }
 
-let active;
+const groups = [
+  ['赛后总览', ['overview', 'performance', 'draft', 'benchmarks']],
+  ['经济与对线', ['graphs', 'farm']],
+  ['团战与事件', ['fights', 'combat', 'timeline']],
+  ['视野与走位', ['vision', 'positions']],
+  ['出装与技能', ['items', 'abilities']],
+];
+let revision = 0;
 
-export function mountMatchAnalysis(match) {
-  active = match;
+export async function mountMatchAnalysis(match, params) {
+  const requestId = ++revision;
   const tabs = element('match-tabs');
   const panel = element('match-analysis');
-  tabs.hidden = panel.hidden = true;
+  tabs.hidden = !match;
+  panel.hidden = true;
   if (!match) return;
-  let selected = 'overview';
-  const buttons = sections.map(([key, title]) => {
-    const button = node('button', '', title);
-    button.type = 'button';
-    button.setAttribute('aria-pressed', String(key === selected));
-    button.addEventListener('click', async () => {
-      selected = key;
-      buttons.forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
-      panel.hidden = key === 'overview';
-      element('match-layout').hidden = !panel.hidden;
-      if (panel.hidden) return;
-      if (key === 'draft') {
-        const draft = element('draft');
-        panel.replaceChildren(...(draft.hidden
-          ? [node('h2', '', 'BP'), node('p', 'panel-meta', '这局暂无完整选禁记录。')]
-          : Array.from(draft.children, child => child.cloneNode(true))));
-        return;
-      }
-      panel.replaceChildren(node('p', 'panel-meta', '正在读取本局分析…'));
-      try {
-        if (!requests.has(match.matchId)) {
-          requests.set(match.matchId, fetch(`/api/matches/${match.matchId}/analysis`).then(response => {
-            if (response.status === 404) return null;
-            if (!response.ok) throw new Error('Analysis unavailable');
-            return response.json();
-          }));
-        }
-        const data = await requests.get(match.matchId);
-        if (active !== match || selected !== key) return;
-        if (data) render(panel, key, match, data);
-        else {
-          requests.delete(match.matchId);
-          panel.replaceChildren(node('p', 'panel-meta', '这局的详细录像分析尚未发布。'));
-        }
-      } catch {
-        requests.delete(match.matchId);
-        if (active === match && selected === key) panel.replaceChildren(node('p', 'panel-meta', '读取失败，请再点一次重试。'));
-      }
-    });
-    return button;
-  });
-  tabs.replaceChildren(...buttons);
-  tabs.hidden = false;
+  const requested = params.get('view');
+  const key = sections.some(([id]) => id === requested) ? requested : 'overview';
+  element('scoreboard').hidden = key !== 'overview';
+  const href = (view) => {
+    const next = new URLSearchParams(params);
+    if (view === 'overview') next.delete('view');
+    else next.set('view', view);
+    return `#match/${match.matchId}${next.size ? '?' + next : ''}`;
+  };
+  function navLink(title, view, active) {
+    const link = node('a', '', title);
+    link.href = href(view);
+    if (active) link.setAttribute('aria-current', 'page');
+    return link;
+  }
+  const first = node('div', 'view-links');
+  const second = node('div', 'view-links match-subviews');
+  for (const [title, views] of groups) {
+    const selected = views.includes(key);
+    first.append(navLink(title, selected ? key : views[0], selected));
+    if (selected) for (const view of views) {
+      second.append(navLink(sections.find(([name]) => name === view)[1], view, key === view));
+    }
+  }
+  tabs.classList.toggle('is-review', key !== 'overview');
+  const context = node('p', 'review-context', `比赛 ${match.matchId} · 天辉 ${match.radiantScore ?? '—'} – ${match.direScore ?? '—'} 夜魇 · ${sideName[match.winner] ?? '胜方待确认'}${match.winner ? '胜' : ''} · ${clock(match.duration)}`);
+  context.hidden = key === 'overview';
+  tabs.replaceChildren(context, first, second);
+  panel.hidden = key === 'overview';
+  element('match-layout').hidden = !panel.hidden;
+  if (panel.hidden) return;
+  if (key === 'draft') {
+    const draft = element('draft');
+    panel.replaceChildren(...(draft.hidden
+      ? [node('h2', '', 'BP'), node('p', 'panel-meta', '这局暂无完整选禁记录。')]
+      : Array.from(draft.children, child => child.cloneNode(true))));
+    return;
+  }
+  panel.replaceChildren(node('p', 'panel-meta', '正在读取本局分析…'));
+  try {
+    if (!requests.has(match.matchId)) {
+      requests.set(match.matchId, fetch(`/api/matches/${match.matchId}/analysis`).then(response => {
+        if (response.status === 404) return null;
+        if (!response.ok) throw new Error('Analysis unavailable');
+        return response.json();
+      }));
+    }
+    const data = await requests.get(match.matchId);
+    if (requestId !== revision) return;
+    if (data) render(panel, key, match, data);
+    else {
+      requests.delete(match.matchId);
+      panel.replaceChildren(node('p', 'panel-meta', '这局的详细录像分析尚未发布。'), navLink('返回赛后总览', 'overview', false));
+    }
+  } catch {
+    requests.delete(match.matchId);
+    if (requestId !== revision) return;
+    const retry = node('button', '', '重试');
+    retry.type = 'button';
+    retry.addEventListener('click', () => mountMatchAnalysis(match, params));
+    panel.replaceChildren(node('p', 'panel-meta', '读取本局分析失败。'), retry);
+  }
 }

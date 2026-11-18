@@ -1,10 +1,11 @@
-import { element, formatRate, heroLabel, node, portrait } from './dom.js';
+import { element, formatRate, heroLabel, node, portrait, heroes as heroCatalog } from './dom.js';
 import { heatmap } from './heatmaps.js';
 import { mountWardMap } from './ward-map.js';
 import { matchLink, rememberMatchHistory } from './match-navigation.js';
 
 let pending;
-export async function showProfile(playerId) {
+const profiles = new Map();
+export async function showProfile(playerId, params) {
   pending?.abort();
   if (!playerId) return;
   pending = new AbortController();
@@ -14,7 +15,20 @@ export async function showProfile(playerId) {
   content.hidden = true;
   status.hidden = false;
   status.textContent = '载入玩家战绩…';
+  const back = element('profile-back');
+  const fromMatch = params.get('fromMatch');
+  back.href = /^[0-9]+$/.test(fromMatch ?? '') ? `#match/${fromMatch}` : '#players';
+  if (back.getAttribute('href') !== '#players' && params.has('fromView')) {
+    back.href += `?${new URLSearchParams({ view: params.get('fromView') })}`;
+  }
+  back.textContent = fromMatch && back.getAttribute('href') !== '#players' ? '← 返回该场比赛' : '← 返回玩家榜';
   try {
+    if (profiles.has(playerId)) {
+      renderProfile(profiles.get(playerId), params);
+      content.hidden = false;
+      status.hidden = true;
+      return;
+    }
     const response = await fetch(`/api/players/${playerId}`, { signal });
     if (response.status === 404) {
       status.textContent = '找不到这位内战玩家。';
@@ -23,7 +37,8 @@ export async function showProfile(playerId) {
     if (!response.ok) throw new Error('Player profile unavailable');
     const data = await response.json();
     if (signal.aborted) return;
-    renderProfile(data);
+    profiles.set(playerId, data);
+    renderProfile(data, params);
     content.hidden = false;
     status.hidden = true;
   } catch {
@@ -31,8 +46,26 @@ export async function showProfile(playerId) {
   }
 }
 
-function renderProfile({ player, heroes, maps, accountIds = [player.id] }) {
+function renderProfile({ player, heroes, maps, accountIds = [player.id] }, params) {
   rememberMatchHistory(player.id, heroes);
+  const view = ['heroes', 'vision'].includes(params.get('view')) ? params.get('view') : 'recent';
+  const source = params.get('fromMatch');
+  const href = (target, hero) => {
+    const query = new URLSearchParams({ view: target });
+    if (source) query.set('fromMatch', source);
+    if (params.has('fromView')) query.set('fromView', params.get('fromView'));
+    if (hero) query.set('hero', hero);
+    return `#player/${player.id}?${query}`;
+  };
+  element('profile-views').replaceChildren(...[['recent', '战绩'], ['heroes', '英雄'], ['vision', '视野与活动']].map(([key, label]) => {
+    const link = node('a', '', label);
+    link.href = href(key);
+    if (view === key) link.setAttribute('aria-current', 'page');
+    return link;
+  }));
+  element('profile-recent').hidden = view !== 'recent';
+  element('profile-hero-panel').hidden = view !== 'heroes';
+  element('profile-vision').hidden = view !== 'vision';
   element('heading').textContent = player.name;
   const stats = [['比赛', player.games], ['胜场', player.wins], ['负场', player.losses], ['胜率', formatRate(player.winRate)]];
   element('profile-summary').replaceChildren(...stats.map(([label, value]) => {
@@ -43,7 +76,7 @@ function renderProfile({ player, heroes, maps, accountIds = [player.id] }) {
   element('profile-coverage').textContent = `活动覆盖 ${maps.activityMatches}/${player.games} 局 · 眼位覆盖 ${maps.wardMatches}/${player.games} 局`;
   const wards = node('div');
   element('profile-wards').replaceChildren(wards);
-  mountWardMap(wards, accountIds);
+  if (view === 'vision') mountWardMap(wards, accountIds);
   const mapsContainer = element('profile-maps');
   mapsContainer.replaceChildren(maps.activityMatches
     ? heatmap(maps.gridSize, maps.activity, maps.activityInterval)
@@ -60,12 +93,9 @@ function renderProfile({ player, heroes, maps, accountIds = [player.id] }) {
       link.append(text);
       return link;
     };
-    if (games.length === 1) {
-      const link = makeLink(games[0], label);
-      link.title = `${games[0].playedDate} · ${games[0].accountName}`;
-      identity.append(link);
-    } else if (games.length > 1) {
+    if (games.length) {
       const details = node('details', 'hero-match-history');
+      details.open = params.get('hero') === hero.hero;
       const summary = node('summary');
       summary.append(label);
       const list = node('ul');
@@ -91,4 +121,37 @@ function renderProfile({ player, heroes, maps, accountIds = [player.id] }) {
     }
     return tr;
   }));
+  const recent = new Map();
+  const ordered = heroes.flatMap((hero) => (hero.matches ?? []).map((game) => ({ ...game, hero: hero.hero })))
+    .sort((a, b) => String(b.playedDate ?? '').localeCompare(String(a.playedDate ?? '')) ||
+      b.matchId.length - a.matchId.length || b.matchId.localeCompare(a.matchId));
+  for (const game of ordered) if (!recent.has(game.matchId)) recent.set(game.matchId, game);
+  const matches = node('section');
+  matches.append(node('h2', '', '最近比赛'));
+  if (!recent.size) matches.append(node('p', 'panel-meta', '暂无可打开的比赛记录。'));
+  const list = node('ul', 'replay-list');
+  for (const game of [...recent.values()].slice(0, 8)) {
+    const row = node('li');
+    const link = node('a', 'replay-link');
+    link.href = `#match/${game.matchId}?returnPlayer=${player.id}`;
+    link.append(node('span', 'category', game.won ? '胜' : '负'), node('span', 'date', game.playedDate ?? game.matchId),
+      node('span', '', heroCatalog[game.hero]?.name ?? game.hero),
+      node('span', 'panel-meta', `${game.team === 'radiant' ? '天辉' : '夜魇'} · ${game.kills}/${game.deaths}/${game.assists}`));
+    row.append(link);
+    list.append(row);
+  }
+  matches.append(list);
+  const favorites = node('section');
+  favorites.append(node('h2', '', '常用英雄'));
+  const top = node('ul');
+  for (const hero of heroes.slice(0, 3)) {
+    const row = node('li');
+    const link = node('a', 'player-link', `${heroLabel(hero)} · ${hero.games} 场`);
+    link.href = href('heroes', hero.hero);
+    row.append(link);
+    top.append(row);
+  }
+  favorites.append(top);
+  element('profile-recent').replaceChildren(matches, favorites);
+  element('profile-recent').classList.add('profile-recent-grid');
 }

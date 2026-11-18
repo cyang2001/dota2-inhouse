@@ -7,8 +7,14 @@ let sortKey = 'pickRate';
 let direction = 'descending';
 
 
-export async function loadAnalytics() {
-  mountWardMap(element('league-wards'));
+export async function loadAnalytics(view) {
+  const wards = view === 'wards';
+  element('analytics-wards').hidden = !wards;
+  element('analytics-picks').hidden = wards;
+  const selected = element(wards ? 'view-wards' : 'view-heroes');
+  element(wards ? 'view-heroes' : 'view-wards').removeAttribute('aria-current');
+  selected.setAttribute('aria-current', 'page');
+  if (wards) mountWardMap(element('league-wards'), null, null, true);
   if (analyticsData || analyticsLoading) return;
   analyticsLoading = true;
   const status = element('analytics-status');
@@ -32,7 +38,10 @@ export async function loadAnalytics() {
     renderAnalyticsHeroes();
   } catch {
     analyticsData = undefined;
-    status.textContent = '统计加载失败，请重新进入数据分析。';
+    const retry = node('button', '', '重试');
+    retry.type = 'button';
+    retry.addEventListener('click', () => loadAnalytics(view));
+    status.replaceChildren(document.createTextNode('统计加载失败。 '), retry);
   } finally {
     analyticsLoading = false;
   }
@@ -48,6 +57,7 @@ function renderAnalyticsHeroes() {
     picks: 0, bans: 0, winRate: null, topPlayers: [],
     pickRate: data.matches ? 0 : null, banRate: data.draftMatches ? 0 : null, ...counts.get(hero) }))
     .filter((row) => `${row.name} ${row.hero}`.toLowerCase().includes(filter))
+    .filter((row) => !element('hero-active').checked || row.picks > 0 || row.bans > 0)
     .sort((a, b) => {
       const left = a[sortKey];
       const right = b[sortKey];
@@ -63,12 +73,17 @@ function renderAnalyticsHeroes() {
     identity.append(document.createTextNode(row.name));
     name.append(identity);
     const top = node('td', '', row.topPlayers.length ? '' : '—');
-    for (const [index, player] of row.topPlayers.entries()) {
-      if (index) top.append(document.createTextNode(' · '));
-      top.append(playerName(player.name, player.id), document.createTextNode(` ${player.games} 场`));
+    for (const player of row.topPlayers) {
+      const line = node('div', 'leader-row');
+      line.append(playerName(player.name, player.id), node('span', 'panel-meta', `${player.games} 场`));
+      top.append(line);
     }
-    tr.append(name, node('td', '', `${formatRate(row.pickRate)} (${row.picks})`),
-      node('td', '', `${formatRate(row.banRate)} (${row.bans})`), node('td', '', formatRate(row.winRate)), top);
+    const rate = (value, numerator, denominator, unit) => value == null ? '—' :
+      `${formatRate(value)} · ${numerator}/${denominator} ${unit}`;
+    const win = node('td', '', rate(row.winRate, row.wins, row.appearances, '人次'));
+    if (row.winRate == null) win.title = '无出场样本';
+    tr.append(name, node('td', '', rate(row.pickRate, row.picks, data.matches, '局')),
+      node('td', '', rate(row.banRate, row.bans, data.draftMatches, '局')), win, top);
     return tr;
   }));
   const status = element('analytics-status');
@@ -78,6 +93,7 @@ function renderAnalyticsHeroes() {
 
 
 element('hero-filter').addEventListener('input', renderAnalyticsHeroes);
+element('hero-active').addEventListener('change', renderAnalyticsHeroes);
 const sortButtons = [...document.querySelectorAll('button[data-sort]')];
 for (const button of sortButtons) {
   button.addEventListener('click', () => {
