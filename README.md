@@ -79,6 +79,8 @@ $env:DOTA_UPLOAD_TOKEN = 'local-upload-token'
 
 升级已有数据库时也执行 `migrations/0003_display_snapshot.sql`。Windows 导入器加 `--snapshot-script server/scripts/publish-display-snapshot.js` 后每分钟检查一次已验证数据的版本，由本机 Node 生成并发布网页统计快照。有需要时用 `--node` 指定 Node 路径。
 
+比赛详情分析使用 `migrations/0004_match_analysis.sql`。Windows 导入器启用 `--publish-analysis` 后，从本机 `--analytics-dir` 的报告生成单场展示数据并上传。线上按比赛 ID 读取。走位最多每 10 秒保留一个采样点，基准只用此前日期的同英雄内战数据。
+
 从最新 `main` 开 `feature/<功能名>` 分支，在该分支验证并开 PR。D1 结构变化先用样例和现有数据副本验证迁移。提交前运行 `git status --short` 检查改动。公开仓库只保存源码、文档和合成示例。项目本地数据、录像、SQLite、密钥和生产配置由 `.gitignore` 排除。
 
 架构复核、录像 BP 实测及 Discord 方案见 [`ARCHITECTURE.md`](ARCHITECTURE.md)。
