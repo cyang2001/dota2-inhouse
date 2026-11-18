@@ -208,8 +208,16 @@
     .profile-back { margin: 0 0 12px; display: inline-block; }
     .profile-table { min-width: 790px; }
     .profile-table th:first-child { min-width: 180px; }
-    .hero-match-history summary { cursor: pointer; color: var(--gold); }
-    .hero-match-history summary .analytics-hero { display: inline-flex; vertical-align: middle; }
+    .hero-match-history summary { display: flex; align-items: center; gap: 9px; list-style: none; cursor: pointer; color: var(--gold); }
+    .hero-match-history summary::-webkit-details-marker { display: none; }
+    .hero-match-history summary::before { content: ""; flex: 0 0 7px; width: 7px; height: 7px;
+      box-sizing: border-box; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+      transform: rotate(-45deg); }
+    .hero-match-history[open] summary::before { transform: rotate(45deg); }
+    .profile-table .analytics-hero { min-width: 0; }
+    .profile-table .analytics-hero .portrait { flex: none; }
+    .profile-table td:first-child > :is(a, .analytics-hero) { padding-inline-start: 16px; }
+    .profile-table td:first-child > a { display: block; }
     .hero-match-history ul { margin: 8px 0 0; padding-left: 20px; }
     .hero-match-history li { margin: 6px 0; }
     .metric-coverage { display: block; color: var(--muted); white-space: nowrap; }
