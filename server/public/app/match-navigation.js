@@ -56,7 +56,12 @@ export async function renderMatchNavigation(match, query = '') {
   if (index < 0) return;
   [ordered[index + 1], ordered[index - 1]].forEach((target, i) => {
     if (!target) return;
-    arrows[i].href = scoped ? matchLink(target.matchId, player, hero) : matchLink(target.matchId);
+    const targetParams = new URLSearchParams();
+    for (const key of ['view', 'returnPlayer']) {
+      if (context.has(key)) targetParams.set(key, context.get(key));
+    }
+    const href = scoped ? matchLink(target.matchId, player, hero) : matchLink(target.matchId);
+    arrows[i].href = targetParams.size ? `${href}${scoped ? '&' : '?'}${targetParams}` : href;
     arrows[i].removeAttribute('aria-disabled');
   });
 }

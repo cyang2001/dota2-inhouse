@@ -5,7 +5,7 @@ import { addWardLens } from './ward-lens.js';
 const mapSource = 'https://whanyu1212.github.io/gem-dota/figures/map.webp';
 const wardNames = { observer: '假眼', sentry: '真眼' };
 const teamNames = { 2: '天辉', 3: '夜魇' };
-const colors = { observer: '#2ae5df', sentry: '#ff5559' };
+const colors = { observer: '#8ddff0', sentry: '#f2b4e0' };
 const mapSize = 960;
 const matchesById = new Map(matches.map((match) => [match.matchId, match]));
 const playerNames = new Map(matches.map((match) => [match.matchId, new Map(match.players.map((p) => [p.id, p.name]))]));
@@ -53,9 +53,18 @@ function drawDots(context, points) {
   context.globalAlpha = 0.88;
   for (const point of points) {
     context.beginPath();
-    context.arc(point.x, point.y, 2.8, 0, Math.PI * 2);
+    if (point.kind === 'observer') context.arc(point.x, point.y, 3.5, 0, Math.PI * 2);
+    else {
+      context.moveTo(point.x, point.y - 4);
+      context.lineTo(point.x + 4, point.y);
+      context.lineTo(point.x, point.y + 4);
+      context.lineTo(point.x - 4, point.y);
+      context.closePath();
+    }
     context.fillStyle = colors[point.kind];
     context.fill();
+    context.strokeStyle = '#121923';
+    context.stroke();
   }
   context.globalAlpha = 1;
 }
@@ -82,7 +91,7 @@ function drawDensity(context, points) {
   }
 }
 
-function createMap(root, data, playerId, matchId) {
+function createMap(root, data, playerId, matchId, defaultDensity) {
   const ids = playerId && new Set(Array.isArray(playerId) ? playerId : [playerId]);
   const eligible = data.matches.filter(({ matchId }) => !ids || [...ids].some(id => playerNames.get(matchId)?.has(id)));
   const points = eligible.flatMap(({ matchId, events }) => events.filter((event) => !ids || ids.has(event[2]))
@@ -119,21 +128,63 @@ function createMap(root, data, playerId, matchId) {
   const summary = node('span');
   summary.setAttribute('role', 'status');
   const legend = node('span', 'ward-legend');
-  legend.append(node('span', 'ward-observer', '假眼'), node('span', 'ward-sentry', '真眼'));
+  legend.append(node('span', 'ward-observer', '● 假眼'), node('span', 'ward-sentry', '◆ 真眼'));
+  const scale = node('span', 'panel-meta', '低 → 高 · 按当前筛选的密度缩放');
   const status = node('span');
   image.addEventListener('error', () => { status.textContent = '地图底图加载失败'; });
   image.src = mapSource;
-  const source = node('a', '', '7.41 地图 · Valve / gem');
+  const source = node('a', '', '7.41 参考底图 · Valve / gem');
   source.href = 'https://github.com/whanyu1212/gem-dota/blob/main/assets/maps/README.md';
   source.target = '_blank';
   source.rel = 'noopener noreferrer';
-  metadata.append(summary, legend, status, source);
-  root.replaceChildren(controls, frame, metadata);
+  metadata.append(summary, legend, scale, status, source);
+  const records = node('details', 'ward-records');
+  records.append(node('summary', '', '眼位记录'));
+  const entries = node('ul');
+  const range = node('span', 'panel-meta');
+  const previous = node('button', '', '上一页');
+  const next = node('button', '', '下一页');
+  previous.type = next.type = 'button';
+  const pages = node('div', 'pagination');
+  pages.append(previous, range, next);
+  records.append(entries, pages);
+  if (defaultDensity) {
+    const enlarge = node('button', '', '放大地图');
+    enlarge.type = 'button';
+    enlarge.addEventListener('click', () => {
+      const expanded = root.classList.toggle('map-expanded');
+      enlarge.textContent = expanded ? '缩小地图' : '放大地图';
+      enlarge.setAttribute('aria-expanded', String(expanded));
+    });
+    enlarge.setAttribute('aria-expanded', 'false');
+    controls.append(enlarge);
+    const panel = node('div', 'ward-sidebar');
+    panel.append(controls, metadata, records);
+    root.classList.add('global-ward-layout');
+    root.replaceChildren(frame, panel);
+  } else root.replaceChildren(controls, frame, metadata, records);
   if (matchId) addWardLens(root, image, canvas);
 
   const context = canvas.getContext('2d');
-  let density = false;
+  let density = defaultDensity;
   let shown = [];
+  let page = 0;
+  function renderRecords() {
+    const pageCount = Math.max(1, Math.ceil(shown.length / 20));
+    entries.replaceChildren(...shown.slice(page * 20, (page + 1) * 20).map((point) => {
+      const row = node('li');
+      const owner = playerNames.get(point.matchId)?.get(point.owner) ?? '归属未知';
+      const link = node('a', 'player-link', `${matchesById.get(point.matchId)?.playedDate ?? point.matchId} · 查看比赛`);
+      link.href = `#match/${point.matchId}`;
+      row.append(document.createTextNode(`${gameTime(point.seconds)} · ${wardNames[point.kind]} · ${teamNames[point.team] ?? '阵营未知'} · ${owner} · `), link);
+      return row;
+    }));
+    range.textContent = shown.length ? `第 ${page + 1} / ${pageCount} 页` : '没有符合条件的眼位';
+    previous.disabled = page === 0;
+    next.disabled = page >= pageCount - 1;
+  }
+  previous.addEventListener('click', () => { page -= 1; renderRecords(); });
+  next.addEventListener('click', () => { page += 1; renderRecords(); });
   function render() {
     marker.hidden = true;
     shown = points.filter((point) => (kind.select.value === 'all' || kind.select.value === point.kind) &&
@@ -141,12 +192,16 @@ function createMap(root, data, playerId, matchId) {
     dots.setAttribute('aria-pressed', String(!density));
     heat.setAttribute('aria-pressed', String(density));
     legend.hidden = density;
+    scale.hidden = !density;
     context.clearRect(0, 0, mapSize, mapSize);
     if (density) drawDensity(context, shown);
     else drawDots(context, shown);
+    const total = matchId ? 1 : ids ? matches.filter(({ matchId: id }) => [...ids].some(p => playerNames.get(id)?.has(p))).length : matches.length;
     summary.textContent = eligible.length
-      ? `${shown.length} 次插眼 · ${eligible.length} 局包含眼位事件${density ? ' · 颜色随当前筛选密度变化' : ''}`
+      ? `本次筛选 ${shown.length} 次插眼 · 眼位数据覆盖 ${eligible.length}/${total} 局`
       : '暂无可用的眼位事件';
+    page = 0;
+    renderRecords();
   }
 
   function showPoint(event) {
@@ -182,7 +237,7 @@ function createMap(root, data, playerId, matchId) {
   render();
 }
 
-export async function mountWardMap(root, playerId, matchId) {
+export async function mountWardMap(root, playerId, matchId, defaultDensity = false) {
   if (root.dataset.wardMap) return;
   root.dataset.wardMap = 'loading';
   root.replaceChildren(node('p', 'empty', '载入眼位数据…'));
@@ -191,13 +246,13 @@ export async function mountWardMap(root, playerId, matchId) {
     if (matchId && data.matches.length === 0) {
       root.replaceChildren(node('p', 'empty', '这局暂时没有眼位记录。'));
     } else {
-      createMap(root, data, playerId, matchId);
+      createMap(root, data, playerId, matchId, defaultDensity);
     }
     root.dataset.wardMap = 'ready';
   } catch {
     delete root.dataset.wardMap;
     const retry = node('button', 'ward-retry', '重新加载');
-    retry.addEventListener('click', () => mountWardMap(root, playerId, matchId));
+    retry.addEventListener('click', () => mountWardMap(root, playerId, matchId, defaultDensity));
     root.replaceChildren(node('p', 'empty', '眼位数据加载失败。'), retry);
   }
 }

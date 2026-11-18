@@ -7,14 +7,14 @@
   <title>Dota 2 内战战绩</title>
   <style>
     :root {
-      --background: #0d1118;
-      --panel: #161c26;
+      --background: #0f141c;
+      --panel: #161d28;
       --panel-dark: #111720;
-      --line: #2a3342;
-      --text: #eef0f4;
-      --muted: #a4adbd;
-      --quiet: #8a97aa;
-      --gold: #ffcc80;
+      --line: #2a3748;
+      --text: #eef2f8;
+      --muted: #b4c0d1;
+      --quiet: #97a5b8;
+      --gold: #efc887;
       --radiant: #8ed9a6;
       --dire: #f2a298;
       --font: "Inter", "Microsoft YaHei UI", "PingFang SC", system-ui, sans-serif;
@@ -24,10 +24,10 @@
     body { margin: 0; background: var(--background); color: var(--text); font: 14px/1.55 var(--font); }
     button, input, a { font: inherit; }
     a { color: inherit; text-decoration: none; }
-    button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
+    :is(button, input, select, summary, a, canvas):focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
     [hidden] { display: none !important; }
-    .wrap { width: min(1168px, calc(100% - 64px)); margin-inline: auto; }
-    .top { border-bottom: 1px solid #242b37; background: #10151d; }
+    .wrap { width: min(1360px, calc(100% - 64px)); margin-inline: auto; }
+    .top { position: sticky; top: 0; z-index: 25; border-bottom: 1px solid var(--line); background: #111823; }
     .top-inner { min-height: 65px; display: flex; gap: 36px; align-items: center; }
     .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 750; letter-spacing: .075em; white-space: nowrap; }
     .brand-icon { width: 27px; height: 27px; display: grid; place-items: center; border: 1px solid #9d6940; background: #402a21; color: var(--gold); font: 750 13px/1 var(--numbers); letter-spacing: -.03em; border-radius: 5px; }
@@ -43,6 +43,68 @@
     .page-head { display: flex; justify-content: space-between; align-items: end; gap: 12px; margin-bottom: 22px; }
     .subtitle { color: var(--muted); margin-top: 8px; }
     .match-code { color: var(--quiet); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .directory-tools, .view-links, .pagination { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 12px 16px; }
+    .directory-tools :is(input, select, button), .pagination button { font: inherit; color: var(--text); background: var(--panel-dark);
+      border: 1px solid #627188; border-radius: 8px; min-height: 38px; padding: 6px 9px; }
+    .directory-tools label { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+    .pagination { justify-content: flex-end; }
+    .view-links a, .view-links button { color: #aac9f5; padding: 6px 9px; border-radius: 6px; }
+    .view-links [aria-current="page"] { background: #243144; color: var(--gold); }
+    .panel-action, .primary-action, .directory-back { color: #aac9f5; }
+    .primary-action { display: inline-flex; padding: 6px 12px; background: var(--gold); color: #17130e; border-radius: 8px; }
+    .directory-back { display: inline-block; margin-bottom: 8px; }
+    .directory-table { min-width: 735px; }
+    .directory-table a { display: block; padding: 5px 0; color: #aac9f5; }
+    .directory-table tbody tr { cursor: pointer; }
+    .directory-table tbody tr:focus-within { outline: 2px solid var(--gold); outline-offset: -2px; }
+    .directory-table .lineup { display: flex; gap: 4px; align-items: center; }
+    .directory-table .lineup .portrait { width: 24px; height: 16px; }
+    .directory-table .lineup .portrait:nth-child(5) { margin-right: 9px; }
+    #overview-page { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+    #overview-page > :first-child { order: 2; }
+    #overview-page .preview-ranking .full-stat { display: none; }
+    .preview-ranking .rate-value { flex-wrap: wrap; }
+    .preview-ranking .rate-value small { white-space: nowrap; }
+    .preview-ranking .meter span { background: #aac9f5; }
+    .category.result-radiant { color: var(--radiant); }
+    .category.result-dire { color: var(--dire); }
+    .profile-recent-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(160px, 1fr); gap: 16px; padding: 16px; }
+    .profile-recent-grid .replay-link { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+    @media (max-width: 700px) { .profile-recent-grid { grid-template-columns: 1fr; } }
+    .scoreboard { min-height: 0; }
+    .scoreboard.is-compact { min-height: 0; padding-block: 8px; }
+    .scoreboard.is-compact .score { font-size: clamp(26px, 4vw, 38px); }
+    .scoreboard.is-compact .portrait-strip { display: none; }
+    .details-grid .team-detail-head { min-height: 45px; padding-block: 8px; }
+    .details-grid :is(th, td) { padding-block: 5px; }
+    .fight-participants { padding: 0 14px 12px; }
+    .fight-participants summary { cursor: pointer; padding: 10px 0; }
+    .fight-participants .player-link { display: inline-block; margin: 4px 12px 4px 0; }
+    .fight-participants .player-name { display: inline; }
+    .fight-participants strong { display: inline-block; min-width: 43px; color: var(--side); }
+    main .player-link { color: #aac9f5; }
+    nav.match-tabs { display: block; }
+    nav.match-tabs.is-review { position: sticky; top: 66px; z-index: 15; background: var(--background); border-bottom: 1px solid var(--line); }
+    .review-context { color: var(--muted); padding-block: 5px; font-variant-numeric: tabular-nums; }
+    .match-tabs .view-links { padding: 5px 0; }
+    .match-subviews { border-top: 1px solid var(--line); }
+    .global-ward-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(225px, 1fr); align-items: start; gap: 16px; }
+    .global-ward-layout.map-expanded { grid-template-columns: 1fr; }
+    .ward-sidebar .ward-meta { flex-direction: column; align-items: flex-start; }
+    .ward-sidebar .ward-meta a { margin-left: 0; }
+    .ward-sidebar .ward-controls > button { padding: 6px 10px; border: 1px solid #627188; border-radius: 8px;
+      background: var(--panel-dark); color: var(--text); cursor: pointer; }
+    .ward-records { margin: 12px 0; }
+    .ward-records summary { cursor: pointer; color: #aac9f5; }
+    .ward-records li { margin-block: 5px; }
+    .ward-observer { color: #8ddff0; }
+    .ward-sentry { color: #f2b4e0; }
+    @media (max-width: 760px) { .global-ward-layout { grid-template-columns: 1fr; } }
+    @media (max-width: 760px) {
+      #overview-page { grid-template-columns: 1fr; }
+      .top .preview { display: none; }
+      nav.match-tabs.is-review { position: static; }
+    }
     .match-navigation { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; margin-bottom: 10px; }
     .match-navigation a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 10px;
       border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--gold); font-weight: 700; }
@@ -55,6 +117,14 @@
     .scoreboard::before, .scoreboard::after { content: ""; z-index: -1; position: absolute; inset-block: -85%; width: 36%; border-inline: 1px solid #ffffff13; background: repeating-linear-gradient(90deg, #ffffff00 0 32px, #ffffff08 33px 34px); transform: skew(-25deg); }
     .scoreboard::before { left: -10%; }
     .scoreboard::after { right: -10%; }
+    .scoreboard.is-latest { min-height: 0; padding-block: 14px; }
+    .scoreboard.is-latest .score { font-size: clamp(40px, 5vw, 60px); }
+    .scoreboard.is-latest .score-center { gap: 3px; }
+    @media (min-width: 761px) {
+      main.wrap { padding-top: 28px; }
+      .page-head { margin-bottom: 16px; }
+      .page-head h1 { font-size: 32px; line-height: 1.25; letter-spacing: 0; }
+    }
     .score-team { display: flex; flex-direction: column; align-items: center; min-width: 0; }
     .radiant { --side: var(--radiant); --side-bg: #1b312b; }
     .dire { --side: var(--dire); --side-bg: #362529; }
@@ -142,6 +212,7 @@
     .analytics-table { min-width: 680px; }
     .analytics-table th:first-child { width: 24%; }
     .analytics-table th:last-child { width: 32%; }
+    .leader-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
     .analytics-hero { display: flex; gap: 8px; align-items: center; }
     .analytics-hero .portrait { width: 36px; height: 22px; }
     @media (max-width: 700px) { .draft-teams { grid-template-columns: minmax(0, 1fr); } }
@@ -263,15 +334,17 @@
       <a class="brand" href="#overview"><span class="brand-icon" aria-hidden="true">D2</span><span>DOTA 2</span></a>
       <nav aria-label="战绩导航">
         <a href="#overview" id="nav-overview" aria-current="page">总览</a>
+        <a href="#matches" id="nav-match">比赛</a>
+        <a href="#players" id="nav-players">玩家</a>
         <a href="#analytics" id="nav-analytics">数据分析</a>
-        <a href="#match" id="nav-match">比赛详情</a>
       </nav>
-      <span class="preview">内战战绩</span>
+      <span class="preview" id="header-count"></span>
     </div>
   </header>
   <main class="wrap" id="main">
+    <a class="directory-back" id="match-back" href="#matches" hidden>← 返回比赛</a>
     <div class="page-head">
-      <div><h1 id="heading">内战战绩</h1><p class="subtitle" id="subtitle"></p></div>
+      <div><h1 id="heading" tabindex="-1">内战战绩</h1><p class="subtitle" id="subtitle"></p></div>
       <p class="match-code" id="match-code"></p>
     </div>
     <nav class="match-navigation" id="match-navigation" aria-label="切换比赛" hidden>
@@ -280,22 +353,44 @@
       <a id="match-newer">下一场 <span aria-hidden="true">→</span></a>
     </nav>
     <section class="scoreboard" id="scoreboard" aria-label="比赛比分"></section>
-    <div class="panels" id="overview">
-      <section class="panel" aria-labelledby="rank-title">
-        <div class="panel-head"><h2 id="rank-title">内战胜率榜</h2><span class="panel-meta" id="rank-count"></span></div>
+    <p class="empty" id="home-empty" hidden>暂无已导入的内战比赛。</p>
+    <div class="panels" id="overview-page">
+      <section class="panel preview-ranking" id="ranking-panel" aria-labelledby="rank-title">
+        <div class="panel-head"><h2 id="rank-title">内战胜率榜</h2><span class="panel-meta" id="rank-count"></span><a class="panel-action" id="rank-all" href="#players">查看完整榜单</a></div>
+        <form class="directory-tools" id="player-filters" hidden>
+          <label>昵称 <input id="player-query" type="search" placeholder="搜索昵称"></label>
+          <label>最少场次 <select id="player-minimum"><option value="0">全部</option><option value="5">5 局</option><option value="10">10 局</option></select></label>
+          <label>排序 <select id="player-sort"><option value="rank">胜率</option><option value="games">场次</option></select></label>
+        </form>
         <div class="table-scroll" id="rank-table">
           <table aria-labelledby="rank-title">
-            <thead><tr><th class="rank" scope="col">排名</th><th scope="col">玩家</th><th class="stat" scope="col">场次</th><th class="stat" scope="col">胜</th><th class="stat" scope="col">负</th><th class="rate" scope="col">胜率</th></tr></thead>
+            <thead><tr><th class="rank" id="rank-position-label" scope="col">全榜排名</th><th scope="col">玩家</th><th class="stat" scope="col">场次</th><th class="stat full-stat" scope="col">胜</th><th class="stat full-stat" scope="col">负</th><th class="rate" scope="col">胜率</th></tr></thead>
             <tbody id="ranking"></tbody>
           </table>
         </div>
         <p class="empty" id="rank-empty" hidden>暂无已确认的私人房间战绩。</p>
       </section>
       <section class="panel" aria-labelledby="replay-title">
-        <div class="panel-head"><h2 id="replay-title">比赛记录</h2><span class="panel-meta" id="replay-count"></span></div>
+        <div class="panel-head"><h2 id="replay-title">最近比赛</h2><span class="panel-meta" id="replay-count"></span><a class="panel-action" href="#matches">全部比赛</a></div>
         <ul class="replay-list" id="replay-list"></ul>
       </section>
     </div>
+    <section id="matches-page" class="panel" hidden aria-label="比赛列表">
+      <form class="directory-tools" id="match-filters">
+        <label>比赛 ID <input id="match-query" type="search" inputmode="numeric" placeholder="搜索比赛 ID"></label>
+        <label>起始日 <input id="match-from" type="date"></label>
+        <label>结束日 <input id="match-to" type="date"></label>
+        <label>英雄 <select id="match-hero"><option value="">全部</option></select></label>
+        <button type="reset">清除筛选</button>
+      </form>
+      <p class="empty" id="match-list-status" role="status"></p>
+      <div class="table-scroll"><table class="directory-table"><thead><tr>
+        <th scope="col">日期</th><th scope="col">胜方</th><th scope="col">天辉／夜魇击杀</th><th scope="col">时长</th><th scope="col">双方阵容</th><th scope="col">比赛 ID</th>
+      </tr></thead><tbody id="match-list-rows"></tbody></table></div>
+      <div class="pagination"><button type="button" id="match-page-prev">上一页</button><span id="match-page-number"></span><button type="button" id="match-page-next">下一页</button></div>
+    </section>
+    <div id="players-page" hidden></div>
+    <p class="empty" id="match-not-found" hidden>找不到这场比赛。</p>
     <nav class="match-tabs" id="match-tabs" aria-label="本局分析" hidden></nav>
     <div class="match-layout" id="match-layout" hidden>
       <section class="details-grid" id="match" aria-label="两队赛后战绩"></section>
@@ -306,16 +401,18 @@
       <section class="panel draft-panel" id="draft" aria-label="英雄禁选" hidden></section>
     </div>
     <section class="panel match-analysis" id="match-analysis" aria-live="polite" hidden></section>
-    <section id="analytics" aria-label="全局数据分析" hidden>
+    <section id="analytics-page" aria-label="全局数据分析" hidden>
       <div class="analytics-summary" id="analytics-summary"></div>
-      <section class="panel map-panel" aria-labelledby="league-wards-heading">
+      <nav class="view-links" aria-label="数据分析视图"><a href="#analytics" id="view-heroes">英雄统计</a><a href="#analytics?view=wards" id="view-wards">眼位地图</a></nav>
+      <section class="panel map-panel" id="analytics-wards" aria-labelledby="league-wards-heading">
         <div class="panel-head"><h2 id="league-wards-heading">全局眼位地图</h2></div>
         <div class="ward-map" id="league-wards"></div>
       </section>
-      <section class="panel">
+      <section class="panel" id="analytics-picks">
         <div class="panel-head"><h2>英雄统计</h2><span id="analytics-coverage" class="panel-meta"></span></div>
         <div class="analytics-controls">
           <input id="hero-filter" type="search" placeholder="搜索英雄" aria-label="搜索英雄">
+          <label><input id="hero-active" type="checkbox" checked> 仅显示有选禁记录</label>
         </div>
         <p id="analytics-status" class="empty" role="status"></p>
         <div class="table-scroll"><table class="analytics-table"><thead><tr>
@@ -327,16 +424,18 @@
       </section>
     </section>
     <section id="profile" aria-label="玩家主页" hidden>
-      <a class="player-link profile-back" href="#overview">← 返回内战胜率榜</a>
+      <a class="player-link profile-back" id="profile-back" href="#players">← 返回玩家榜</a>
       <p id="profile-status" class="empty" role="status"></p>
       <div id="profile-content" hidden>
         <div class="analytics-summary" id="profile-summary"></div>
-        <section class="panel map-panel" aria-labelledby="profile-maps-heading">
+        <nav class="view-links" id="profile-views" aria-label="玩家视图"></nav>
+        <section class="panel" id="profile-recent" hidden></section>
+        <section class="panel map-panel" id="profile-vision" aria-labelledby="profile-maps-heading">
           <div class="panel-head"><h2 id="profile-maps-heading">眼位地图与活动热图</h2><span id="profile-coverage" class="panel-meta"></span></div>
           <div class="ward-map" id="profile-wards"></div>
           <div class="heatmaps" id="profile-maps"></div>
         </section>
-        <section class="panel" aria-labelledby="profile-heroes-heading">
+        <section class="panel" id="profile-hero-panel" aria-labelledby="profile-heroes-heading">
           <div class="panel-head"><h2 id="profile-heroes-heading">英雄战绩</h2></div>
           <div class="table-scroll"><table class="profile-table"><thead><tr><th scope="col">英雄</th><th scope="col">场次</th><th scope="col">胜</th><th scope="col">负</th><th scope="col">胜率</th><th scope="col">平均 GPM</th><th scope="col">平均 XPM</th><th scope="col">10 分钟正补</th><th scope="col" title="可判定对线中，10:00 同路净资产领先比例">线优率（估算）</th></tr></thead><tbody id="profile-heroes"></tbody></table></div>
         </section>
