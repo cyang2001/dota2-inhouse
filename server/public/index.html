@@ -198,7 +198,13 @@
       .match-layout .details-grid { grid-template-columns: minmax(0, 1fr); }
     }
     .profile-back { margin: 0 0 12px; display: inline-block; }
-    .profile-table { min-width: 400px; }
+    .profile-table { min-width: 790px; }
+    .profile-table th:first-child { min-width: 180px; }
+    .hero-match-history summary { cursor: pointer; color: var(--gold); }
+    .hero-match-history summary .analytics-hero { display: inline-flex; vertical-align: middle; }
+    .hero-match-history ul { margin: 8px 0 0; padding-left: 20px; }
+    .hero-match-history li { margin: 6px 0; }
+    .metric-coverage { display: block; color: var(--muted); white-space: nowrap; }
     @media (max-width: 920px) {
       .wrap { width: calc(100% - 48px); }
       .panels { grid-template-columns: 1fr; }
@@ -311,7 +317,7 @@
         </section>
         <section class="panel" aria-labelledby="profile-heroes-heading">
           <div class="panel-head"><h2 id="profile-heroes-heading">英雄战绩</h2></div>
-          <div class="table-scroll"><table class="profile-table"><thead><tr><th scope="col">英雄</th><th scope="col">场次</th><th scope="col">胜</th><th scope="col">负</th><th scope="col">胜率</th></tr></thead><tbody id="profile-heroes"></tbody></table></div>
+          <div class="table-scroll"><table class="profile-table"><thead><tr><th scope="col">英雄</th><th scope="col">场次</th><th scope="col">胜</th><th scope="col">负</th><th scope="col">胜率</th><th scope="col">平均 GPM</th><th scope="col">平均 XPM</th><th scope="col">10 分钟正补</th><th scope="col" title="可判定对线中，10:00 同路净资产领先比例">线优率（估算）</th></tr></thead><tbody id="profile-heroes"></tbody></table></div>
         </section>
       </div>
     </section>

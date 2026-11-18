@@ -1,26 +1,20 @@
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { buildOverview, playerStandings } from '../src/services/analytics.js';
-import { playerMaps, wholeLeagueWards } from '../src/services/spatial.js';
+import { wholeLeagueWards } from '../src/services/spatial.js';
+import { accountMatches, buildAccountProfile } from '../src/services/account-projection.js';
 
-function buildDisplay({ matches, spatial }) {
-  const standings = playerStandings(matches);
-  const histories = new Map(standings.map(({ id }) => [id, new Map()]));
-  for (const { players, winner } of matches) {
-    for (const { id, hero, team } of players) {
-      const heroes = histories.get(id);
-      const row = heroes.get(hero) ?? { hero, games: 0, wins: 0 };
-      row.games += 1;
-      row.wins += Number(team === winner);
-      heroes.set(hero, row);
-    }
-  }
-  const profiles = Object.fromEntries(standings.map((player) => {
-    const heroes = Array.from(histories.get(player.id).values(), (row) => ({
-      ...row, losses: row.games - row.wins, winRate: row.wins / row.games,
-    })).sort((a, b) => b.games - a.games || b.wins - a.wins || (a.hero < b.hero ? -1 : 1));
-    const rows = spatial.flatMap((match) => match.players[player.id] ? [match.players[player.id]] : []);
-    return [player.id, { player, heroes, maps: playerMaps(rows) }];
-  }));
-  return { standings, overview: buildOverview(matches), wards: wholeLeagueWards(spatial), profiles };
+function buildDisplay({ matches, spatial }, accountLinks, metrics, identityVersion) {
+  const projected = accountMatches(matches, accountLinks);
+  const standings = playerStandings(projected);
+  const profiles = Object.fromEntries(standings.map((player) => [player.id,
+    buildAccountProfile({ matches, projected, spatial, player, accountLinks, metrics })]));
+  return { identityVersion, accountLinks, standings, overview: buildOverview(projected), wards: wholeLeagueWards(spatial), profiles };
+}
+
+function localInputs(mode) {
+  return JSON.parse(execFileSync(process.env.DOTA_SNAPSHOT_PYTHON, [process.env.DOTA_SNAPSHOT_INPUTS, mode],
+    { encoding: 'utf8', timeout: 20000, maxBuffer: 8 * 1024 * 1024 }));
 }
 
 const uploadUrl = new URL(process.argv[2]);
@@ -31,13 +25,18 @@ if (uploadUrl.username || uploadUrl.password || !token ||
   throw new Error('A secure match upload URL and token are required');
 }
 const endpoint = new URL('/api/display-snapshot', uploadUrl);
+const hasLocalInputs = Boolean(process.env.DOTA_SNAPSHOT_INPUTS);
+const local = hasLocalInputs ? localInputs('accounts') : { links: {} };
+const identityVersion = hasLocalInputs
+  ? createHash('sha256').update('profiles-v2:' + JSON.stringify(local)).digest('hex') : null;
+if (identityVersion) endpoint.searchParams.set('identity', identityVersion);
 const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
 const options = { headers, redirect: 'error', signal: AbortSignal.timeout(25000) };
 const response = await fetch(endpoint, options);
 if (response.status !== 204) {
   if (!response.ok) throw new Error(`Snapshot source returned HTTP ${response.status}`);
   const source = await response.json();
-  const data = buildDisplay(source);
+  const data = buildDisplay(source, local.links, hasLocalInputs ? localInputs('metrics') : {}, identityVersion);
   const result = await fetch(endpoint, { ...options, method: 'POST', body: JSON.stringify({ revision: source.revision, data }) });
   if (!result.ok) throw new Error(`Snapshot upload returned HTTP ${result.status}`);
   console.log(`Display snapshot published for ${source.matches.length} matches (revision ${source.revision})`);

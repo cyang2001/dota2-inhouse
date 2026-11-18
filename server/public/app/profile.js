@@ -30,7 +30,7 @@ export async function showProfile(playerId) {
   }
 }
 
-function renderProfile({ player, heroes, maps }) {
+function renderProfile({ player, heroes, maps, accountIds = [player.id] }) {
   element('heading').textContent = player.name;
   const stats = [['比赛', player.games], ['胜场', player.wins], ['负场', player.losses], ['胜率', formatRate(player.winRate)]];
   element('profile-summary').replaceChildren(...stats.map(([label, value]) => {
@@ -41,7 +41,7 @@ function renderProfile({ player, heroes, maps }) {
   element('profile-coverage').textContent = `活动覆盖 ${maps.activityMatches}/${player.games} 局 · 眼位覆盖 ${maps.wardMatches}/${player.games} 局`;
   const wards = node('div');
   element('profile-wards').replaceChildren(wards);
-  mountWardMap(wards, player.id);
+  mountWardMap(wards, accountIds);
   const mapsContainer = element('profile-maps');
   mapsContainer.replaceChildren(maps.activityMatches
     ? heatmap(maps.gridSize, maps.activity, maps.activityInterval)
@@ -51,9 +51,42 @@ function renderProfile({ player, heroes, maps }) {
     const identity = node('td');
     const label = node('div', 'analytics-hero');
     label.append(portrait(hero), document.createTextNode(heroLabel(hero)));
-    identity.append(label);
+    const games = hero.matches ?? [];
+    const makeLink = (game, text) => {
+      const link = node('a', 'player-link');
+      link.href = `#match/${game.matchId}`;
+      link.append(text);
+      return link;
+    };
+    if (games.length === 1) {
+      const link = makeLink(games[0], label);
+      link.title = `${games[0].playedDate} · ${games[0].accountName}`;
+      identity.append(link);
+    } else if (games.length > 1) {
+      const details = node('details', 'hero-match-history');
+      const summary = node('summary');
+      summary.append(label);
+      const list = node('ul');
+      for (const game of games) {
+        const row = node('li');
+        row.append(makeLink(game, `${game.playedDate} · ${game.won ? '胜' : '负'} · ${game.kills}/${game.deaths}/${game.assists}`),
+          node('div', 'panel-meta', `实战账号 ${game.accountName}`));
+        list.append(row);
+      }
+      details.append(summary, list);
+      identity.append(details);
+    } else {
+      identity.append(label);
+    }
     tr.append(identity, node('td', '', hero.games), node('td', '', hero.wins), node('td', '', hero.losses),
       node('td', '', formatRate(hero.winRate)));
+    for (const key of ['gpm', 'xpm', 'lastHits10', 'laneWin']) {
+      const metric = hero.metrics?.[key];
+      const value = metric?.value == null ? '—' : key === 'laneWin' ? formatRate(metric.value) : metric.value.toFixed(1);
+      const cell = node('td', '', value);
+      if (metric?.samples) cell.append(node('small', 'metric-coverage', `${metric.samples}/${hero.games} 局`));
+      tr.append(cell);
+    }
     return tr;
   }));
 }

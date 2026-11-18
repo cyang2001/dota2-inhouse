@@ -6,6 +6,7 @@ import secrets
 from pathlib import Path
 import sqlite3
 import subprocess
+import sys
 import time
 from urllib.parse import urlsplit
 
@@ -122,8 +123,15 @@ def watch(db, options, identity_key, token):
         if options.snapshot_script and time.monotonic() >= snapshot_after:
             snapshot_after = time.monotonic() + 60
             try:
+                snapshot_env = {**os.environ, "DOTA_SNAPSHOT_PYTHON": sys.executable,
+                                "DOTA_SNAPSHOT_INPUTS": str(Path(__file__).with_name("profile_snapshot_inputs.py")),
+                                "DOTA_SNAPSHOT_IDENTITY_KEY": str(options.identity_key)}
+                if options.account_map:
+                    snapshot_env["DOTA_STEAM_ACCOUNT_MAP"] = str(options.account_map)
+                if options.analytics_dir:
+                    snapshot_env["DOTA_SNAPSHOT_ARCHIVE"] = str(options.analytics_dir)
                 subprocess.run([options.node, str(options.snapshot_script), options.upload_url],
-                               check=True, timeout=40)
+                               check=True, timeout=55, env=snapshot_env)
             except (OSError, subprocess.SubprocessError) as exc:
                 print(f"Display snapshot will retry ({type(exc).__name__})", flush=True)
         if options.publish_analysis and time.monotonic() >= analysis_after:
@@ -139,6 +147,7 @@ if __name__ == "__main__":
     parser.add_argument("--identity-key", type=Path, default=ROOT / ".data" / "player-id.key")
     parser.add_argument("--preview", type=Path)
     parser.add_argument("--analytics-dir", type=Path, help="Store full offline replay reports here")
+    parser.add_argument("--account-map", type=Path, help="Private SteamID64 mapping for snapshot aggregation")
     parser.add_argument("--publish-analysis", action="store_true", help="Publish match analysis from the local reports")
     parser.add_argument("--snapshot-script", type=Path, help="Publish locally computed website statistics")
     parser.add_argument("--node", default="node", help="Node executable for the display snapshot publisher")

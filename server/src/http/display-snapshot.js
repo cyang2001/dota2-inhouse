@@ -7,7 +7,8 @@ export async function displaySnapshot(request, env) {
     return json(401, { error: 'Upload authorization required' });
   }
   if (request.method === 'GET') {
-    const source = await displayIsCurrent(env.DB) ? null : await displaySource(env.DB);
+    const version = new URL(request.url).searchParams.get('identity');
+    const source = await displayIsCurrent(env.DB, version) ? null : await displaySource(env.DB, version);
     return source ? json(200, source) : new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
   }
   let input;
