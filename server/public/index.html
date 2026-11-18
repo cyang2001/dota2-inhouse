@@ -43,6 +43,14 @@
     .page-head { display: flex; justify-content: space-between; align-items: end; gap: 12px; margin-bottom: 22px; }
     .subtitle { color: var(--muted); margin-top: 8px; }
     .match-code { color: var(--quiet); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .match-navigation { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .match-navigation a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 10px;
+      border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--gold); font-weight: 700; }
+    .match-navigation a:first-child { justify-self: start; }
+    .match-navigation a:last-child { justify-self: end; }
+    .match-navigation a[href]:hover { border-color: var(--gold); }
+    .match-navigation a[aria-disabled="true"] { color: var(--muted); opacity: .55; }
+    .match-navigation-position { text-align: center; color: var(--muted); font-size: 12px; }
     .scoreboard { position: relative; isolation: isolate; display: grid; grid-template-columns: 1fr minmax(208px, .85fr) 1fr; align-items: center; gap: 10px; padding: 26px 28px 28px; min-height: 206px; border: 1px solid #414140; border-radius: 12px; overflow: hidden; background: linear-gradient(108deg, #162e29 1%, #141b24 39%, #181b24 57%, #362126 100%); }
     .scoreboard::before, .scoreboard::after { content: ""; z-index: -1; position: absolute; inset-block: -85%; width: 36%; border-inline: 1px solid #ffffff13; background: repeating-linear-gradient(90deg, #ffffff00 0 32px, #ffffff08 33px 34px); transform: skew(-25deg); }
     .scoreboard::before { left: -10%; }
@@ -258,6 +266,11 @@
       <div><h1 id="heading">内战战绩</h1><p class="subtitle" id="subtitle"></p></div>
       <p class="match-code" id="match-code"></p>
     </div>
+    <nav class="match-navigation" id="match-navigation" aria-label="切换比赛" hidden>
+      <a id="match-older"><span aria-hidden="true">←</span> 上一场</a>
+      <span class="match-navigation-position" id="match-navigation-position" aria-live="polite"></span>
+      <a id="match-newer">下一场 <span aria-hidden="true">→</span></a>
+    </nav>
     <section class="scoreboard" id="scoreboard" aria-label="比赛比分"></section>
     <div class="panels" id="overview">
       <section class="panel" aria-labelledby="rank-title">
