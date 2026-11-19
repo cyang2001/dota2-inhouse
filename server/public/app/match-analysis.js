@@ -1,6 +1,6 @@
 import { element, heroLabel, node, playerName } from './dom.js';
 import { mapSources, recordedPatch } from './patches.js';
-import items742 from './items-seven-forty-two.js';
+import { matchNames } from './match-names.js';
 import { mountWardMap } from './ward-map.js';
 
 const sections = [
@@ -18,7 +18,6 @@ const clock = (value) => {
   return `${value < 0 ? '−' : ''}${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 };
 const rate = (value) => value == null ? '—' : `${Math.round(value * 100)}%`;
-const readable = (value) => value?.replace(/^(npc_dota_hero_|item_)/, '').replaceAll('_', ' ') || '—';
 const hero = (name) => name ? heroLabel({ hero: name.replace(/^npc_dota_hero_/, '') }) : '—';
 
 function table(root, columns, rows) {
@@ -172,12 +171,7 @@ function positionMap(root, samples, patch) {
   root.append(frame, node('p', 'panel-meta', `${samples.length} 个位置样本 · 每 10 秒最多取一个点`));
 }
 
-function render(root, key, match, data) {
-  const items = recordedPatch(match) === '7.42' ? items742 : null;
-  const itemLabel = (value) => {
-    const key = value?.replace(/^item_/, '');
-    return items && Object.hasOwn(items, key) ? items[key] : readable(value);
-  };
+function render(root, key, match, data, names) {
   const roster = match.players;
   const people = new Map(roster.map(person => [person.id, person]));
   const player = (id) => {
@@ -232,14 +226,18 @@ function render(root, key, match, data) {
     });
   } else if (key === 'items') {
     choosePlayer((body, row) => {
-      body.append(node('p', '', `结算装备 · ${Object.values(row.progression.final_items).map(itemLabel).join(' · ') || '—'}`));
-      table(body, ['时间', '购买装备'], row.progression.purchases.map(e => [clock(e.seconds), itemLabel(e.item)]));
+      body.append(node('p', '', `结算装备 · ${Object.values(row.progression.final_items).map(names.item).join(' · ') || '—'}`));
+      table(body, ['时间', '购买装备'], row.progression.purchases.map(e => [clock(e.seconds), names.item(e.item)]));
     });
   } else if (key === 'abilities') {
     choosePlayer((body, row) => {
       table(body, ['技能', '使用次数'], Object.entries(row.progression.ability_uses).sort((a, b) => b[1] - a[1])
-        .map(([name, count]) => [readable(name), count]));
-      table(body, ['加点顺序', '技能 ID'], row.progression.ability_upgrade_ids.map((id, index) => [index + 1, id]));
+        .map(([name, count]) => [names.skill(name), count]));
+      table(body, ['加点顺序', '技能'], row.progression.ability_upgrade_ids.map((id, index) => {
+        const name = node('span', '', names.skill(id));
+        name.title = `技能 ID ${id}`;
+        return [index + 1, name];
+      }));
     });
   } else if (key === 'vision') {
     const map = node('div', 'ward-map analysis-route');
@@ -351,9 +349,11 @@ export async function mountMatchAnalysis(match, params) {
         return response.json();
       }));
     }
-    const data = await requests.get(match.matchId);
+    const catalog = key === 'items' || key === 'abilities'
+      ? import('./match-name-catalog.js').then(module => module.default, () => null) : null;
+    const [data, labels] = await Promise.all([requests.get(match.matchId), catalog]);
     if (requestId !== revision) return;
-    if (data) render(panel, key, match, data);
+    if (data) render(panel, key, match, data, matchNames(labels, recordedPatch(match)));
     else {
       requests.delete(match.matchId);
       panel.replaceChildren(node('p', 'panel-meta', '这局的详细录像分析尚未发布。'), navLink('返回赛后总览', 'overview', false));

@@ -43,7 +43,7 @@ Windows 从录像读取 `lobbyType`、比赛 ID 和真人阵容，用本机密�
 | `dota-741.webp` | gem 7.41 底图快照，对应 gem 的 7.41 校准 | `92c6f365579b769f72519c141e59286f352257be16a2149a8badc912681569e0` |
 | `dota-742.png` | Steam Dota 2 构建 6979 的 `game/dota/pak01_dir.vpk`，使用 Source 2 Viewer CLI 导出 `materials/overviews/dota_tga_d8178876.vtex_c` | `45bc89cd7d9af2026e1de7e9b1835a0cb4e374ead36b4503b884678011dd5228` |
 
-7.42 坐标使用该构建的 `resource/overviews/dota.txt`，以两边泉水的地图位置校验。7.42 装备名取自 Valve 中文物品表，保留录像中的物品代码供回查。[7.41 底图说明](https://github.com/whanyu1212/gem-dota/blob/main/assets/maps/README.md) · [Valve 7.42 补丁](https://www.dota2.com/patches/7.42)
+7.42 坐标使用该构建的 `resource/overviews/dota.txt`，以两边泉水的地图位置校验。对局详情按 7.41／7.42 的技能 ID 表显示中文加点、技能使用和装备。名称来自 Valve 简体中文游戏资源与官方数据接口，历史 ID 来自 7.41f 的游戏文件快照。天赋显示效果名称，缺少中文名称时保留录像里的代码。生成表的入口是 `server/scripts/build-match-names.py`。[7.41 底图说明](https://github.com/whanyu1212/gem-dota/blob/main/assets/maps/README.md) · [Valve 7.42 补丁](https://www.dota2.com/patches/7.42)
 
 ## 本机试跑
 
