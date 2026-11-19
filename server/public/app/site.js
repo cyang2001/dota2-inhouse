@@ -4,12 +4,13 @@ import { showProfile } from './profile.js';
 import { mountWardMap } from './ward-map.js';
 import { mountMatchAnalysis } from './match-analysis.js';
 import { renderMatchNavigation } from './match-navigation.js';
-import { durationLabel, winnerLabel } from './match-directory.js';
+import { patchKey, patchMatches, recordedPatch } from './patches.js';
+import { durationLabel, winnerLabel, setDirectoryPatch } from './match-directory.js';
 
 const categories = { inhouse: '私人房间', ranked: '天梯', weekend: '周末联赛', casual: '普通匹配', unknown: '类型待确认' };
-const inhouseMatches = matches.filter((match) => match.category === 'inhouse' && match.winner);
-const featured = inhouseMatches[0] ?? matches[0];
-let current = featured;
+const scope = element('site-patch');
+scope.value = sessionStorage.getItem('dota.stats.patch') ?? '';
+let current;
 const sides = { radiant: ['天辉', 'Radiant'], dire: ['夜魇', 'Dire'] };
 const formatDate = (value) => new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`));
 const matchDate = (match) => match.playedDate ? formatDate(match.playedDate) : `${formatDate(match.savedDate)}存档`;
@@ -46,11 +47,12 @@ function renderScore({ compact = false, latest = false } = {}) {
   scoreboard.replaceChildren(scoreSide('radiant'), center, scoreSide('dire'));
 }
 
-const standings = JSON.parse(element('standings-data').textContent);
+const standingsData = JSON.parse(element('standings-data').textContent);
 element('header-count').textContent = `已收录 ${matches.length} 局`;
 const rankingPanel = element('ranking-panel');
 let fullRanking;
 function renderRanking(full) {
+  const standings = Array.isArray(standingsData) ? standingsData : scope.value ? standingsData.byPatch[patchKey(scope.value)] : standingsData.all;
   let previous;
   let rank = 0;
   const ranked = standings.map((row, index) => {
@@ -89,7 +91,7 @@ function renderRanking(full) {
 }
 
 function showRanking(full) {
-  if (fullRanking === full) return;
+  if (fullRanking === full) { renderRanking(full); return; }
   fullRanking = full;
   element('player-filters').hidden = !full;
   element('rank-all').hidden = full;
@@ -98,8 +100,8 @@ function showRanking(full) {
   renderRanking(full);
 }
 
-function renderReplayList() {
-  const rows = matches.slice(0, 5).map((match) => {
+function renderReplayList(scopedMatches) {
+  const rows = scopedMatches.slice(0, 5).map((match) => {
     const row = node('li');
     const link = node('a', 'replay-link');
     link.href = `#match/${match.matchId}`;
@@ -112,7 +114,8 @@ function renderReplayList() {
     return row;
   });
   element('replay-list').replaceChildren(...rows);
-  element('replay-count').textContent = `${matches.length} 局`;
+  element('replay-count').textContent = `${scopedMatches.length} 局`;
+  element('replay-empty').hidden = Boolean(rows.length);
 }
 
 function renderDetails() {
@@ -166,6 +169,9 @@ function route() {
   const params = new URLSearchParams(query);
   const [section, id, extra] = path.split('/');
   const selection = section === '#match' && !extra && (id === undefined || /^[0-9]+$/.test(id));
+  const patch = scope.value;
+  const scopedMatches = patchMatches(matches, patch);
+  const featured = scopedMatches[0];
   current = selection && id ? matches.find((m) => m.matchId === id) : featured;
   const details = Boolean(selection && current);
   const analytical = path === '#analytics';
@@ -173,6 +179,10 @@ function route() {
   const matchList = path === '#matches';
   const playerList = path === '#players';
   const overview = !selection && !analytical && !playerId && !matchList && !playerList;
+  element('patch-control').hidden = selection;
+  element('header-count').textContent = `已收录 ${scopedMatches.length} 局`;
+  if (overview) renderReplayList(scopedMatches);
+  if (matchList) setDirectoryPatch(patch);
   element('analytics-page').hidden = !analytical;
   element('profile').hidden = !playerId;
   element('overview-page').hidden = !overview;
@@ -184,8 +194,8 @@ function route() {
   renderMatchNavigation(details ? current : null, query);
   element('heading').textContent = playerId ? '玩家主页' : analytical ? '数据分析' : selection ? '比赛详情'
     : matchList ? '比赛' : playerList ? '玩家' : '内战战绩';
-  element('subtitle').textContent = details ? `${matchDate(current)} · 5 对 5` : overview
-    ? `${inhouseMatches.length} 局已验证内战 · ${standings.length} 位玩家` : '';
+  element('subtitle').textContent = details ? `${matchDate(current)} · 5 对 5 · ${recordedPatch(current) ?? '版本待确认'}` : overview
+    ? `${scopedMatches.length} 局已验证内战` : '';
   element('match-code').textContent = current && (details || overview) ? `比赛 ID  ${current.matchId}` : '';
   for (const key of ['overview', 'match', 'players', 'analytics']) element(`nav-${key}`).removeAttribute('aria-current');
   element(`nav-${overview ? 'overview' : analytical ? 'analytics' : playerId || playerList ? 'players' : 'match'}`)
@@ -207,8 +217,8 @@ function route() {
   element('scoreboard').hidden = !current || (!details && !overview);
   element('home-empty').hidden = !overview || Boolean(current);
   if (!element('scoreboard').hidden) renderScore({ compact: details, latest: overview });
-  showProfile(playerId, params);
-  if (analytical) loadAnalytics(params.get('view'));
+  showProfile(playerId, params, patch);
+  if (analytical) loadAnalytics(params.get('view'), patch);
   if (details) renderDetails();
   const draft = element('draft');
   draft.hidden = !details || !current?.draft?.length;
@@ -247,7 +257,10 @@ function renderDraft(container, events) {
 
 element('player-filters').addEventListener('submit', (event) => event.preventDefault());
 element('player-filters').addEventListener('input', () => renderRanking(true));
-renderReplayList();
+scope.addEventListener('change', () => {
+  sessionStorage.setItem('dota.stats.patch', scope.value);
+  route();
+});
 const pagePositions = new Map();
 let previousHash = location.hash;
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';

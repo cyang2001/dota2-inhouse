@@ -30,9 +30,20 @@ Windows 从录像读取 `lobbyType`、比赛 ID 和真人阵容，用本机密�
 
 「数据分析」由 `GET /api/analytics` 提供。选用率以所有已验证比赛为分母。禁用率以带有效 BP 的比赛为分母。同一个英雄每局最多记一次选用或禁用，英雄胜率以实际选用人次计算。使用前三按稳定玩家 ID 汇总，并显示最新昵称。进入 `server/` 后运行 `node --test` 可以检查统计口径。
 
-`GET /api/analytics/wards` 汇总所有已解析的内战眼位。每张热图显示样本覆盖；旧战绩可单独补传空间数据。活动图按游戏时钟每 5 秒最多取一个英雄位置。假眼和真眼按放置次数统计，汇总到北向上的 36 × 36 坐标网格。
+`GET /api/analytics/wards?patch=7.41` 汇总指定大版本的内战眼位。每张热图显示样本覆盖；旧战绩可单独补传空间数据。活动图按游戏时钟每 5 秒最多取一个英雄位置。假眼和真眼按放置次数统计，汇总到北向上的 36 × 36 坐标网格。
 
-眼位地图从 `GET /api/analytics/ward-events` 读取每次放置的坐标、游戏时间、阵营和玩家 ID。全局与个人地图支持散点、热力和眼位、时段、阵营筛选，历史录像统一使用 gem 校准的 7.41 底图。游戏地形随版本变化，历史场地细节以录像为准。底图从 gem 文档的现成 WebP 加载。 [底图版权与来源](https://github.com/whanyu1212/gem-dota/blob/main/assets/maps/README.md) · [坐标校准](https://whanyu1212.github.io/gem-dota/experimental/map-annotations)
+顶部「比赛版本」支持全部版本、7.41 和 7.42，作用于首页、比赛列表、玩家和英雄统计。各统计接口可用 `?patch=7.41` 或 `?patch=7.42` 选择样本；没有这个参数时统计全部比赛。无法确认版本的比赛可在全部版本查看。新版录像从文件头中的服务器构建识别；现有 7.41 历史记录可按录像内日期归类。
+
+眼位地图从 `GET /api/analytics/ward-events?patch=7.41` 读取每次放置的坐标、时间、阵营和玩家 ID。全局和个人眼位地图每次只读一个大版本，默认 7.41，单场地图随比赛版本。活动热图在个人统计选择全部版本时显示 7.41，切到具体版本后显示该版本。
+
+部署前，将两个固定底图放到 `server/public/maps/`，图像文件随 Worker 的受保护静态资源部署。
+
+| 文件 | 来源 | SHA-256 |
+| --- | --- | --- |
+| `dota-741.webp` | gem 7.41 底图快照，对应 gem 的 7.41 校准 | `92c6f365579b769f72519c141e59286f352257be16a2149a8badc912681569e0` |
+| `dota-742.png` | Steam Dota 2 构建 6979 的 `game/dota/pak01_dir.vpk`，使用 Source 2 Viewer CLI 导出 `materials/overviews/dota_tga_d8178876.vtex_c` | `45bc89cd7d9af2026e1de7e9b1835a0cb4e374ead36b4503b884678011dd5228` |
+
+7.42 坐标使用该构建的 `resource/overviews/dota.txt`，以两边泉水的地图位置校验。7.42 装备名取自 Valve 中文物品表，保留录像中的物品代码供回查。[7.41 底图说明](https://github.com/whanyu1212/gem-dota/blob/main/assets/maps/README.md) · [Valve 7.42 补丁](https://www.dota2.com/patches/7.42)
 
 ## 本机试跑
 
@@ -79,7 +90,7 @@ $env:DOTA_UPLOAD_TOKEN = 'local-upload-token'
 
 升级已有数据库时也执行 `migrations/0003_display_snapshot.sql`。Windows 导入器加 `--snapshot-script server/scripts/publish-display-snapshot.js` 后每分钟检查一次已验证数据的版本，由本机 Node 生成并发布网页统计快照。有需要时用 `--node` 指定 Node 路径。
 
-比赛详情分析使用 `migrations/0004_match_analysis.sql`。Windows 导入器启用 `--publish-analysis` 后，从本机 `--analytics-dir` 的报告生成单场展示数据并上传。线上按比赛 ID 读取。走位最多每 10 秒保留一个采样点，基准只用此前日期的同英雄内战数据。
+比赛详情分析使用 `migrations/0004_match_analysis.sql`。Windows 导入器启用 `--publish-analysis` 后，从本机 `--analytics-dir` 的报告生成单场展示数据并上传。线上按比赛 ID 读取。走位最多每 10 秒保留一个采样点，基准使用同一已识别大版本、此前日期的同英雄内战数据。
 
 Windows 导入器可加 `--account-map <本机私有 JSON>`，JSON 的键为大号 SteamID64 字符串，值为小号 SteamID64 字符串数组。使用原录像身份密钥，账号表留在本机。
 

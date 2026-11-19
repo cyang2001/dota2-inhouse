@@ -9,6 +9,13 @@ from dota_inhouse.analysis.spatial import map_position
 from upload_replays import RejectRedirects
 
 
+def report_patch(match):
+    if match.get('patch'):
+        return match['patch']
+    date = match['played_date']
+    return '7.41' if date and '2026-03-25' <= date < '2026-11-18' else None
+
+
 def history_index(paths):
     history = defaultdict(list)
     for path in paths:
@@ -17,19 +24,20 @@ def history_index(paths):
         if not date:
             continue
         for player in report["players"].values():
-            history[player["hero"]].append((date, player["economy"]["gpm"], player["economy"]["xpm"]))
+            history[report_patch(report['global_data']), player['hero']].append((date, player["economy"]["gpm"], player["economy"]["xpm"]))
     return history
 
 
 def analysis_document(report, history=None):
     match = report["global_data"]
+    patch = report_patch(match)
     players = {}
     for player_id, player in report["players"].items():
         positions = {}
         for sample in player["positions"]:
             seconds = sample["seconds"]
-            if seconds is not None and 0 <= seconds <= match["duration"]:
-                point = map_position(sample["x"], sample["y"])
+            if patch and seconds is not None and 0 <= seconds <= match['duration']:
+                point = map_position(sample['x'], sample['y'], patch)
                 if point is not None:
                     positions.setdefault(int(seconds // 10), [round(seconds, 1), *point])
         players[player_id] = {
@@ -37,8 +45,8 @@ def analysis_document(report, history=None):
             "positions": list(positions.values()),
         }
         date = match["played_date"]
-        if date and history is not None:
-            earlier = [entry for entry in history[player["hero"]] if entry[0] < date]
+        if date and patch and history is not None:
+            earlier = [entry for entry in history.get((patch, player['hero']), []) if entry[0] < date]
             benchmarks = {}
             for i, metric in enumerate(("gpm", "xpm"), start=1):
                 samples = [entry[i] for entry in earlier if entry[i] is not None]

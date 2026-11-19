@@ -86,7 +86,7 @@ def match_report(replay, lobby):
         )
     global_data = {
         "game_mode": summary["gameMode"], "lobby_type": lobby["lobbyType"],
-        "played_date": summary["playedDate"], "winner": summary["winner"], "duration": summary["duration"],
+        "played_date": summary["playedDate"], "patch": summary.get("patch"), "winner": summary["winner"], "duration": summary["duration"],
         "scores": {side: summary[f"{side}Score"] for side in ("radiant", "dire")},
         "draft": summary.get("draft"),
         "advantage": series(match.game_times_min, radiant_gold=match.radiant_gold_adv, radiant_xp=match.radiant_xp_adv),

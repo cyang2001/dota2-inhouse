@@ -13,3 +13,5 @@ __pycache__/
 *.key
 wrangler.live.json
 secrets.json
+/server/public/maps/dota-741.webp
+/server/public/maps/dota-742.png

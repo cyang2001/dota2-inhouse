@@ -2,28 +2,41 @@ import { element, formatRate, heroes, node, playerName, portrait } from './dom.j
 import { mountWardMap } from './ward-map.js';
 
 let analyticsData;
-let analyticsLoading = false;
+const analyticsCache = new Map();
+let requestedPatch;
 let sortKey = 'pickRate';
 let direction = 'descending';
 
 
-export async function loadAnalytics(view) {
+export async function loadAnalytics(view, patch) {
+  if (requestedPatch !== patch) {
+    requestedPatch = patch;
+    analyticsData = undefined;
+    element('analytics-summary').replaceChildren();
+    element('analytics-coverage').textContent = '';
+    element('analytics-heroes').replaceChildren();
+  }
   const wards = view === 'wards';
   element('analytics-wards').hidden = !wards;
   element('analytics-picks').hidden = wards;
   const selected = element(wards ? 'view-wards' : 'view-heroes');
   element(wards ? 'view-heroes' : 'view-wards').removeAttribute('aria-current');
   selected.setAttribute('aria-current', 'page');
-  if (wards) mountWardMap(element('league-wards'), null, null, true);
-  if (analyticsData || analyticsLoading) return;
-  analyticsLoading = true;
+  if (wards) mountWardMap(element('league-wards'), null, null, true, patch || '7.41');
+  if (analyticsData) return;
   const status = element('analytics-status');
   status.hidden = false;
   status.textContent = '载入比赛统计…';
   try {
-    const response = await fetch('/api/analytics');
-    if (!response.ok) throw new Error('Analytics request failed');
-    analyticsData = await response.json();
+    if (!analyticsCache.has(patch)) {
+      analyticsCache.set(patch, fetch(`/api/analytics${patch ? `?patch=${patch}` : ''}`).then(response => {
+        if (!response.ok) throw new Error('Analytics request failed');
+        return response.json();
+      }).catch(error => { analyticsCache.delete(patch); throw error; }));
+    }
+    const result = await analyticsCache.get(patch);
+    if (requestedPatch !== patch || analyticsData) return;
+    analyticsData = result;
     const data = analyticsData;
     const duration = data.averageDuration;
     const cards = [['比赛', data.matches], ['玩家', data.players], ['天辉／夜魇胜局', `${data.radiantWins} / ${data.direWins}`],
@@ -37,13 +50,12 @@ export async function loadAnalytics(view) {
     element('analytics-coverage').textContent = `选用率基于 ${data.matches} 局，禁用率基于 ${data.draftMatches} 局有 BP 的比赛`;
     renderAnalyticsHeroes();
   } catch {
+    if (requestedPatch !== patch) return;
     analyticsData = undefined;
     const retry = node('button', '', '重试');
     retry.type = 'button';
-    retry.addEventListener('click', () => loadAnalytics(view));
+    retry.addEventListener('click', () => loadAnalytics(view, patch));
     status.replaceChildren(document.createTextNode('统计加载失败。 '), retry);
-  } finally {
-    analyticsLoading = false;
   }
 }
 
@@ -51,7 +63,7 @@ function renderAnalyticsHeroes() {
   if (!analyticsData) return;
   const data = analyticsData;
   const counts = new Map(data.heroes.map((row) => [row.hero, row]));
-  const keys = new Set([...Object.keys(heroes), ...counts.keys()]);
+  const keys = new Set(data.matches ? [...Object.keys(heroes), ...counts.keys()] : []);
   const filter = element('hero-filter').value.trim().toLowerCase();
   const results = Array.from(keys, (hero) => ({ hero, name: heroes[hero]?.name || `英雄 ${hero}`,
     picks: 0, bans: 0, winRate: null, topPlayers: [],
@@ -88,7 +100,7 @@ function renderAnalyticsHeroes() {
   }));
   const status = element('analytics-status');
   status.hidden = results.length > 0;
-  status.textContent = '没有匹配的英雄。';
+  status.textContent = data.matches ? '没有匹配的英雄。' : '该版本暂无已导入的内战录像。';
 }
 
 

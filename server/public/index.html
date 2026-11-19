@@ -206,6 +206,10 @@
     .analytics-summary strong { display: block; margin-top: 5px; font-size: 22px; }
     .analytics-controls { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; }
     .analytics-controls input { color: var(--text); background: var(--panel-dark); border: 1px solid var(--line); border-radius: 4px; padding: 6px; }
+    .patch-control:not([hidden]) { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; color: var(--muted); white-space: nowrap; }
+    .patch-control + .preview { margin-left: 0; }
+    .patch-control[hidden] + .preview { margin-left: auto; }
+    .patch-control select { color: var(--text); background: #18212e; border: 1px solid var(--line); border-radius: 6px; padding: 6px; font: inherit; }
     .sort-header { font: inherit; color: var(--text); border: 0; background: transparent; cursor: pointer; padding: 3px 0; white-space: nowrap; }
     .sort-header span { margin-left: 5px; color: var(--muted); }
     th[aria-sort] .sort-header span { color: var(--gold); }
@@ -299,7 +303,8 @@
     }
     @media (max-width: 700px) {
       .wrap { width: calc(100% - 28px); }
-      .top-inner { min-height: 56px; gap: 18px; }
+      .top-inner { min-height: 56px; gap: 0 18px; flex-wrap: wrap; }
+      .top-inner .patch-control { margin-block: 5px; }
       .top nav { gap: 13px; font-size: 13px; }
       .brand { gap: 6px; font-size: 12px; }
       .brand-icon { width: 24px; height: 24px; }
@@ -338,6 +343,7 @@
         <a href="#players" id="nav-players">玩家</a>
         <a href="#analytics" id="nav-analytics">数据分析</a>
       </nav>
+      <label class="patch-control" id="patch-control">比赛版本 <select id="site-patch"><option value="">全部版本</option><option>7.41</option><option>7.42</option></select></label>
       <span class="preview" id="header-count"></span>
     </div>
   </header>
@@ -373,6 +379,7 @@
       <section class="panel" aria-labelledby="replay-title">
         <div class="panel-head"><h2 id="replay-title">最近比赛</h2><span class="panel-meta" id="replay-count"></span><a class="panel-action" href="#matches">全部比赛</a></div>
         <ul class="replay-list" id="replay-list"></ul>
+        <p class="empty" id="replay-empty" hidden>该版本暂无已导入的内战录像。</p>
       </section>
     </div>
     <section id="matches-page" class="panel" hidden aria-label="比赛列表">

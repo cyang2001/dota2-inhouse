@@ -1,4 +1,6 @@
 import { element, heroLabel, node, playerName } from './dom.js';
+import { mapSources, recordedPatch } from './patches.js';
+import items742 from './items-seven-forty-two.js';
 import { mountWardMap } from './ward-map.js';
 
 const sections = [
@@ -134,15 +136,19 @@ function chart(root, points, label, colors = ['#9cdba7', '#70b8fc']) {
   root.append(canvas, valueText, instructions);
 }
 
-function positionMap(root, samples) {
+function positionMap(root, samples, patch) {
+  if (!mapSources[patch]) {
+    root.append(node('p', 'panel-meta', '该局地图坐标待校准。'));
+    return;
+  }
   if (!samples.length) {
     root.append(node('p', 'panel-meta', '暂无位置采样。'));
     return;
   }
   const frame = node('div', 'ward-frame analysis-route');
   const image = node('img', 'ward-background');
-  image.alt = 'Dota 2 7.41 地图';
-  image.src = 'https://whanyu1212.github.io/gem-dota/figures/map.webp';
+  image.alt = `Dota 2 ${patch} 地图`;
+  image.src = mapSources[patch];
   const canvas = node('canvas', 'ward-layer');
   canvas.width = canvas.height = 600;
   canvas.setAttribute('aria-label', '按游戏时间采样的英雄位置');
@@ -167,6 +173,11 @@ function positionMap(root, samples) {
 }
 
 function render(root, key, match, data) {
+  const items = recordedPatch(match) === '7.42' ? items742 : null;
+  const itemLabel = (value) => {
+    const key = value?.replace(/^item_/, '');
+    return items && Object.hasOwn(items, key) ? items[key] : readable(value);
+  };
   const roster = match.players;
   const people = new Map(roster.map(person => [person.id, person]));
   const player = (id) => {
@@ -221,8 +232,8 @@ function render(root, key, match, data) {
     });
   } else if (key === 'items') {
     choosePlayer((body, row) => {
-      body.append(node('p', '', `结算装备 · ${Object.values(row.progression.final_items).map(readable).join(' · ') || '—'}`));
-      table(body, ['时间', '购买装备'], row.progression.purchases.map(e => [clock(e.seconds), readable(e.item)]));
+      body.append(node('p', '', `结算装备 · ${Object.values(row.progression.final_items).map(itemLabel).join(' · ') || '—'}`));
+      table(body, ['时间', '购买装备'], row.progression.purchases.map(e => [clock(e.seconds), itemLabel(e.item)]));
     });
   } else if (key === 'abilities') {
     choosePlayer((body, row) => {
@@ -257,7 +268,7 @@ function render(root, key, match, data) {
       root.append(details);
     }
   } else if (key === 'positions') {
-    choosePlayer((body, row) => positionMap(body, row.positions));
+    choosePlayer((body, row) => positionMap(body, row.positions, recordedPatch(match)));
   } else if (key === 'timeline') {
     const events = roster.flatMap(({ id }) => {
       const row = data.players[id];

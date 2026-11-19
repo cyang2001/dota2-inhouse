@@ -1,15 +1,14 @@
 import { matches, node } from './dom.js';
 import { addWardLens } from './ward-lens.js';
 
-// gem's 7.41 projection uses the central square of the background image.
-const mapSource = 'https://whanyu1212.github.io/gem-dota/figures/map.webp';
+import { mapSources, patches, recordedPatch } from './patches.js';
 const wardNames = { observer: '假眼', sentry: '真眼' };
 const teamNames = { 2: '天辉', 3: '夜魇' };
 const colors = { observer: '#8ddff0', sentry: '#f2b4e0' };
 const mapSize = 960;
 const matchesById = new Map(matches.map((match) => [match.matchId, match]));
 const playerNames = new Map(matches.map((match) => [match.matchId, new Map(match.players.map((p) => [p.id, p.name]))]));
-let reading;
+const readings = new Map();
 
 async function fetchWards(path) {
   const response = await fetch(path);
@@ -17,13 +16,15 @@ async function fetchWards(path) {
   return response.json();
 }
 
-function wardData(matchId) {
+function wardData(matchId, patch) {
   if (matchId) return fetchWards(`/api/matches/${matchId}/wards`);
-  reading ??= fetchWards('/api/analytics/ward-events').catch((error) => {
-    reading = undefined;
-    throw error;
-  });
-  return reading;
+  if (!readings.has(patch)) {
+    readings.set(patch, fetchWards(`/api/analytics/ward-events?patch=${patch}`).catch(error => {
+      readings.delete(patch);
+      throw error;
+    }));
+  }
+  return readings.get(patch);
 }
 
 function filterControl(label, choices) {
@@ -91,7 +92,7 @@ function drawDensity(context, points) {
   }
 }
 
-function createMap(root, data, playerId, matchId, defaultDensity) {
+function createMap(root, data, playerId, matchId, defaultDensity, patch) {
   const ids = playerId && new Set(Array.isArray(playerId) ? playerId : [playerId]);
   const eligible = data.matches.filter(({ matchId }) => !ids || [...ids].some(id => playerNames.get(matchId)?.has(id)));
   const points = eligible.flatMap(({ matchId, events }) => events.filter((event) => !ids || ids.has(event[2]))
@@ -114,7 +115,7 @@ function createMap(root, data, playerId, matchId, defaultDensity) {
 
   const frame = node('div', 'ward-frame');
   const image = node('img', 'ward-background');
-  image.alt = 'Dota 2 7.41 地图';
+  image.alt = `Dota 2 ${patch} 地图`;
   image.referrerPolicy = 'no-referrer';
   const canvas = node('canvas', 'ward-layer');
   canvas.width = canvas.height = mapSize;
@@ -132,9 +133,9 @@ function createMap(root, data, playerId, matchId, defaultDensity) {
   const scale = node('span', 'panel-meta', '低 → 高 · 按当前筛选的密度缩放');
   const status = node('span');
   image.addEventListener('error', () => { status.textContent = '地图底图加载失败'; });
-  image.src = mapSource;
-  const source = node('a', '', '7.41 参考底图 · Valve / gem');
-  source.href = 'https://github.com/whanyu1212/gem-dota/blob/main/assets/maps/README.md';
+  image.src = mapSources[patch];
+  const source = node('a', '', `${patch} 底图 · ${patch === '7.41' ? 'Valve / gem' : 'Valve'}`);
+  source.href = patch === '7.41' ? 'https://github.com/whanyu1212/gem-dota/blob/main/assets/maps/README.md' : 'https://www.dota2.com/patches/7.42';
   source.target = '_blank';
   source.rel = 'noopener noreferrer';
   metadata.append(summary, legend, scale, status, source);
@@ -196,10 +197,10 @@ function createMap(root, data, playerId, matchId, defaultDensity) {
     context.clearRect(0, 0, mapSize, mapSize);
     if (density) drawDensity(context, shown);
     else drawDots(context, shown);
-    const total = matchId ? 1 : ids ? matches.filter(({ matchId: id }) => [...ids].some(p => playerNames.get(id)?.has(p))).length : matches.length;
+    const total = matchId ? 1 : matches.filter(m => recordedPatch(m) === patch && (!ids || m.players.some(p => ids.has(p.id)))).length;
     summary.textContent = eligible.length
       ? `本次筛选 ${shown.length} 次插眼 · 眼位数据覆盖 ${eligible.length}/${total} 局`
-      : '暂无可用的眼位事件';
+      : `${patch} 暂无可用的眼位事件`;
     page = 0;
     renderRecords();
   }
@@ -237,22 +238,36 @@ function createMap(root, data, playerId, matchId, defaultDensity) {
   render();
 }
 
-export async function mountWardMap(root, playerId, matchId, defaultDensity = false) {
-  if (root.dataset.wardMap) return;
-  root.dataset.wardMap = 'loading';
-  root.replaceChildren(node('p', 'empty', '载入眼位数据…'));
+export async function mountWardMap(root, playerId, matchId, defaultDensity = false, patch = '7.41') {
+  if (matchId) patch = recordedPatch(matchesById.get(matchId) ?? {});
+  const key = patch ?? 'unknown';
+  if (root.dataset.wardMap === key) return;
+  root.dataset.wardMap = key;
+  const content = node('div');
+  root.replaceChildren(content);
+  if (!matchId) {
+    const version = filterControl('眼位地图版本', patches.map(value => [value, value]));
+    version.select.value = patch;
+    version.select.addEventListener('change', () => mountWardMap(root, playerId, matchId, defaultDensity, version.select.value));
+    root.prepend(version.control);
+  }
+  if (!mapSources[patch]) {
+    content.append(node('p', 'empty', patch ? `${patch} 地图坐标待校准。` : '这局的地图版本待确认。'));
+    return;
+  }
+  content.append(node('p', 'empty', '载入眼位数据…'));
   try {
-    const data = await wardData(matchId);
+    const data = await wardData(matchId, patch);
     if (matchId && data.matches.length === 0) {
-      root.replaceChildren(node('p', 'empty', '这局暂时没有眼位记录。'));
+      content.replaceChildren(node('p', 'empty', '这局暂时没有眼位记录。'));
     } else {
-      createMap(root, data, playerId, matchId, defaultDensity);
+      createMap(content, data, playerId, matchId, defaultDensity, patch);
     }
-    root.dataset.wardMap = 'ready';
   } catch {
+    if (root.dataset.wardMap !== key || !root.contains(content)) return;
     delete root.dataset.wardMap;
     const retry = node('button', 'ward-retry', '重新加载');
-    retry.addEventListener('click', () => mountWardMap(root, playerId, matchId, defaultDensity));
-    root.replaceChildren(node('p', 'empty', '眼位数据加载失败。'), retry);
+    retry.addEventListener('click', () => mountWardMap(root, playerId, matchId, defaultDensity, patch));
+    content.replaceChildren(node('p', 'empty', '眼位数据加载失败。'), retry);
   }
 }

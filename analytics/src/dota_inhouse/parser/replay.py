@@ -5,13 +5,14 @@ from hashlib import sha256
 import hmac
 from pathlib import Path
 import struct
+import re
 from zoneinfo import ZoneInfo
 
 import gem
 from gem.results.models import ParsedMatch, ParsedPlayer
 from gem.catalog.heroes import HEROES, hero_id
 from gem.binary.stream import DemoStream
-from gem.proto.demo_pb2 import CDemoFileInfo, DEM_FileInfo
+from gem.proto.demo_pb2 import CDemoFileHeader, CDemoFileInfo, DEM_FileHeader, DEM_FileInfo
 
 from ..analysis.spatial import summarize_spatial
 
@@ -37,6 +38,19 @@ def read_file_info(path):
         if frame is None or frame.msg_type != DEM_FileInfo:
             raise ValueError("Replay file info was not found")
         return CDemoFileInfo.FromString(frame.data).game_info.dota
+
+
+def replay_patch(path, played):
+    with DemoStream(path) as stream:
+        frame = stream._read_message()
+    if frame is not None and frame.msg_type == DEM_FileHeader:
+        header = CDemoFileHeader.FromString(frame.data)
+        build = re.search(r'(?:^|[/\\\\])dota_v(\d+)(?:[/\\\\]|$)', header.game_directory)
+        if build and int(build[1]) == 6979:
+            return '7.42'
+    if played and '2026-03-25' <= played.date().isoformat() < '2026-11-18':
+        return '7.41'
+    return None
 
 
 def read_draft(info):
@@ -85,6 +99,9 @@ def parse_replay(path, identity_key, info=None):
         "playedDate": played.date().isoformat() if played else None,
         "players": [],
     }
+    patch = replay_patch(path, played)
+    if patch:
+        result['patch'] = patch
     draft = read_draft(info)
     if draft is not None:
         result["draft"] = draft
@@ -101,8 +118,11 @@ def parse_replay(path, identity_key, info=None):
 
 
 def web_summary(replay):
-    spatial = summarize_spatial(replay.match, replay.players, replay.summary["players"])
-    return {**replay.summary, "spatial": spatial}
+    patch = replay.summary.get('patch')
+    if patch is None:
+        return replay.summary.copy()
+    spatial = summarize_spatial(replay.match, replay.players, replay.summary['players'], patch)
+    return {**replay.summary, 'spatial': spatial}
 
 
 def summarize(path, identity_key):

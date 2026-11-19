@@ -5,7 +5,7 @@ import { matchLink, rememberMatchHistory } from './match-navigation.js';
 
 let pending;
 const profiles = new Map();
-export async function showProfile(playerId, params) {
+export async function showProfile(playerId, params, patch) {
   pending?.abort();
   if (!playerId) return;
   pending = new AbortController();
@@ -22,23 +22,24 @@ export async function showProfile(playerId, params) {
     back.href += `?${new URLSearchParams({ view: params.get('fromView') })}`;
   }
   back.textContent = fromMatch && back.getAttribute('href') !== '#players' ? '← 返回该场比赛' : '← 返回玩家榜';
+  const key = `${playerId}/${patch}`;
   try {
-    if (profiles.has(playerId)) {
-      renderProfile(profiles.get(playerId), params);
+    if (profiles.has(key)) {
+      renderProfile(profiles.get(key), params, patch);
       content.hidden = false;
       status.hidden = true;
       return;
     }
-    const response = await fetch(`/api/players/${playerId}`, { signal });
+    const response = await fetch(`/api/players/${playerId}${patch ? `?patch=${patch}` : ''}`, { signal });
     if (response.status === 404) {
-      status.textContent = '找不到这位内战玩家。';
+      status.textContent = patch ? '这位玩家在该版本暂无内战记录。' : '找不到这位内战玩家。';
       return;
     }
     if (!response.ok) throw new Error('Player profile unavailable');
     const data = await response.json();
     if (signal.aborted) return;
-    profiles.set(playerId, data);
-    renderProfile(data, params);
+    profiles.set(key, data);
+    renderProfile(data, params, patch);
     content.hidden = false;
     status.hidden = true;
   } catch {
@@ -46,7 +47,7 @@ export async function showProfile(playerId, params) {
   }
 }
 
-function renderProfile({ player, heroes, maps, accountIds = [player.id] }, params) {
+function renderProfile({ player, heroes, maps, accountIds = [player.id] }, params, patch) {
   rememberMatchHistory(player.id, heroes);
   const view = ['heroes', 'vision'].includes(params.get('view')) ? params.get('view') : 'recent';
   const source = params.get('fromMatch');
@@ -73,10 +74,11 @@ function renderProfile({ player, heroes, maps, accountIds = [player.id] }, param
     card.append(node('span', 'panel-meta', label), node('strong', '', value));
     return card;
   }));
-  element('profile-coverage').textContent = `活动覆盖 ${maps.activityMatches}/${player.games} 局 · 眼位覆盖 ${maps.wardMatches}/${player.games} 局`;
+  element('profile-coverage').textContent = patch ? `${patch} 活动覆盖 ${maps.activityMatches}/${player.games} 局 · 眼位覆盖 ${maps.wardMatches}/${player.games} 局`
+    : `活动热图 · 7.41 · ${maps.activityMatches} 局有位置记录`;
   const wards = node('div');
   element('profile-wards').replaceChildren(wards);
-  if (view === 'vision') mountWardMap(wards, accountIds);
+  if (view === 'vision') mountWardMap(wards, accountIds, null, false, patch || '7.41');
   const mapsContainer = element('profile-maps');
   mapsContainer.replaceChildren(maps.activityMatches
     ? heatmap(maps.gridSize, maps.activity, maps.activityInterval)

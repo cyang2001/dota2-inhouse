@@ -1,3 +1,4 @@
+import { patches } from '../../public/app/patches.js';
 import { validateSpatial } from './spatial.js';
 
 export const practiceLobby = 1;
@@ -42,10 +43,12 @@ export function validateMatch(data) {
     return { id, name, team, hero, kills, deaths, assists };
   });
   if (radiant !== 5) throw new Error('Expected five players on each team');
+  if (data.patch != null && !patches.includes(data.patch)) throw new Error('Unsupported patch');
   const draft = data.draft == null ? undefined : validateDraft(data.draft, players);
   const spatial = data.spatial == null ? undefined : validateSpatial(data.spatial, players);
   const { matchId, winner, duration, radiantScore, direScore, playedDate, savedDate } = data;
   return { matchId, category: 'inhouse', winner, duration, radiantScore, direScore, playedDate, savedDate, players, draft, spatial,
+    ...(data.patch ? { patch: data.patch } : {}),
     replay: { matchId, lobbyType: replay.lobbyType, radiantPlayers: replay.radiantPlayers, direPlayers: replay.direPlayers } };
 }
 

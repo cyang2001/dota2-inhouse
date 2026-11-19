@@ -1,10 +1,20 @@
 import { element, heroes, heroLabel, matches, node, portrait } from './dom.js';
 
+import { patchMatches, recordedPatch } from './patches.js';
+
 const pageSize = 20;
 const form = element('match-filters');
 const items = element('match-list-rows');
 const options = element('match-hero');
 let page = 0;
+let patch = '';
+
+export function setDirectoryPatch(value) {
+  if (patch === value) return;
+  patch = value;
+  page = 0;
+  render();
+}
 for (const [id, hero] of Object.entries(heroes).sort((a, b) => a[1].name.localeCompare(b[1].name, 'zh-CN'))) {
   options.add(new Option(hero.name, id));
 }
@@ -22,7 +32,7 @@ function render() {
   const from = element('match-from').value;
   const to = element('match-to').value;
   const hero = options.value;
-  const filtered = matches.filter((match) => {
+  const filtered = patchMatches(matches, patch).filter((match) => {
     const date = match.playedDate ?? match.savedDate;
     return match.matchId.includes(query) && (!from || date >= from) && (!to || date <= to)
       && (!hero || match.players.some((player) => player.hero === hero));
@@ -36,7 +46,7 @@ function render() {
   items.replaceChildren(...filtered.slice(page * pageSize, (page + 1) * pageSize).map((match) => {
     const row = node('tr');
     const date = `${match.playedDate ?? match.savedDate}${match.playedDate ? '' : '（存档）'}`;
-    const link = node('a', '', date);
+    const link = node('a', '', `${date} · ${recordedPatch(match) ?? '版本待确认'}`);
     link.href = `#match/${match.matchId}`;
     link.setAttribute('aria-label', `${date} · ${winnerLabel(match)} · 比赛 ${match.matchId}`);
     const lineup = node('div', 'lineup');

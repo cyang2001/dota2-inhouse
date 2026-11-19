@@ -1,3 +1,4 @@
+import { mapSources, patches } from './public/app/patches.js';
 import { json, sameSecret, viewerPassword } from './src/http/request.js';
 import { analytics, leagueWards, playerHeroes, playerProfile, serveHome, upload, wardEvents } from './src/http/site.js';
 import { discordInteraction } from './src/integrations/discord.js';
@@ -6,7 +7,8 @@ import { getMatchAnalysis, uploadMatchAnalysis } from './src/http/match-analysis
 
 export default {
   async fetch(request, env) {
-    const path = new URL(request.url).pathname;
+    const { pathname: path, searchParams } = new URL(request.url);
+    const patch = searchParams.get('patch');
     const analysisRoute = /^\/api\/matches\/([1-9]\d{0,19})\/analysis$/.exec(path);
     if (analysisRoute && request.method === 'POST') return uploadMatchAnalysis(request, env, analysisRoute[1]);
     if (path === '/discord/interactions' && request.method === 'POST') return discordInteraction(request, env);
@@ -18,16 +20,17 @@ export default {
     if ((path === '/' || path === '/index.html') && (request.method === 'GET' || request.method === 'HEAD')) {
       return serveHome(request, env);
     }
-    if (/^\/app\/[a-z-]+\.js$/.test(path) && (request.method === 'GET' || request.method === 'HEAD')) {
+    if ((/^\/app\/[a-z-]+\.js$/.test(path) || Object.values(mapSources).includes(path)) && (request.method === 'GET' || request.method === 'HEAD')) {
       return env.ASSETS.fetch(request);
     }
+    if (patch !== null && !patches.includes(patch)) return json(400, { error: 'Unsupported patch' });
     const playerRoute = /^\/api\/players\/([a-f0-9]{32})(\/heroes)?$/.exec(path);
     if (playerRoute && request.method === 'GET') {
-      return playerRoute[2] ? playerHeroes(env.DB, playerRoute[1]) : playerProfile(env.DB, playerRoute[1]);
+      return playerRoute[2] ? playerHeroes(env.DB, playerRoute[1], patch) : playerProfile(env.DB, playerRoute[1], patch);
     }
-    if (path === '/api/analytics' && request.method === 'GET') return analytics(env.DB);
-    if (path === '/api/analytics/wards' && request.method === 'GET') return leagueWards(env.DB);
-    if (path === '/api/analytics/ward-events' && request.method === 'GET') return wardEvents(env.DB);
+    if (path === '/api/analytics' && request.method === 'GET') return analytics(env.DB, patch);
+    if (path === '/api/analytics/wards' && request.method === 'GET') return leagueWards(env.DB, patch);
+    if (path === '/api/analytics/ward-events' && request.method === 'GET') return wardEvents(env.DB, null, patch);
     const matchWards = /^\/api\/matches\/([1-9]\d{0,19})\/wards$/.exec(path);
     if (matchWards && request.method === 'GET') return wardEvents(env.DB, matchWards[1]);
     if (analysisRoute && request.method === 'GET') return getMatchAnalysis(env.DB, analysisRoute[1]);
