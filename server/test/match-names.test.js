@@ -9,6 +9,8 @@ test('replay views localize upgrades, talents, purchases and inventory without c
   assert.equal(previous.skill(5003), '法力损毁');
   assert.equal(previous.skill('antimage_mana_break'), '法力损毁');
   assert.match(previous.skill(6353), /^天赋 · .*法力虚空/);
+  assert.match(previous.skill(323, 'luna'), /环月战刃/);
+  assert.equal(previous.skill(323), '技能 323');
   assert.equal(previous.item('blink'), '闪烁匕首');
   assert.equal(previous.item('item_chasm_stone'), '裂隙之石');
   assert.equal(previous.item(1951), '1951');

@@ -179,7 +179,7 @@ function render(root, key, match, data, names) {
     return person ? playerName(person.name, id) : '—';
   };
   const choosePlayer = (draw) => select(root, '玩家', roster.map(person => [person.id, `${person.name} · ${heroLabel(person)}`]),
-    (body, id) => draw(body, data.players[id]));
+    (body, id) => draw(body, data.players[id], people.get(id)?.hero));
   root.replaceChildren(node('h2', '', sections.find(([id]) => id === key)[1]));
   if (key === 'performance') {
     table(root, ['玩家', 'GPM', 'XPM', '净资产', '英雄伤害', '建筑伤害', '治疗', '击杀参与', '团战参与'],
@@ -230,11 +230,11 @@ function render(root, key, match, data, names) {
       table(body, ['时间', '购买装备'], row.progression.purchases.map(e => [clock(e.seconds), names.item(e.item)]));
     });
   } else if (key === 'abilities') {
-    choosePlayer((body, row) => {
+    choosePlayer((body, row, heroKey) => {
       table(body, ['技能', '使用次数'], Object.entries(row.progression.ability_uses).sort((a, b) => b[1] - a[1])
         .map(([name, count]) => [names.skill(name), count]));
       table(body, ['加点顺序', '技能'], row.progression.ability_upgrade_ids.map((id, index) => {
-        const name = node('span', '', names.skill(id));
+        const name = node('span', '', names.skill(id, heroKey));
         name.title = `技能 ID ${id}`;
         return [index + 1, name];
       }));

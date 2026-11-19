@@ -51,9 +51,11 @@ def build_catalog(ids741, ids742, chinese, feeds=()):
     for patch, table in patches.items():
         index = {}
         for name, number in table.items():
-            if name in labels:
-                index.setdefault(number, set()).add(name)
-        ids[patch] = {number: next(iter(names)) for number, names in index.items() if len(names) == 1}
+            index.setdefault(number, set()).add(name)
+        ids[patch] = {
+            number: next(iter(names)) if len(names) == 1 else sorted(names)
+            for number, names in index.items() if any(name in labels for name in names)
+        }
     shared = {number: name for number, name in ids['7.41'].items() if ids['7.42'].get(number) == name}
     for patch in ids:
         ids[patch] = {number: name for number, name in ids[patch].items() if number not in shared}
